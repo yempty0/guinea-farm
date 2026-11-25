@@ -23,6 +23,9 @@ button,input{font-family:inherit}
 .stage{position:relative;overflow:hidden}
 #cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
 .hud{position:absolute;left:10px;right:10px;top:10px;background:var(--card);border:1px solid var(--line);border-radius:22px;padding:8px 12px 10px;backdrop-filter:blur(8px);box-shadow:0 6px 20px #6b3e1a1f;transition:opacity .3s,transform .3s}
+.hud.mini .grow,.hud.mini .stats,.hud.mini .row{display:none}
+#foldBtn svg{transition:transform .2s}.hud.mini #foldBtn svg{transform:rotate(180deg)}
+.follow{position:absolute;right:12px;bottom:54px;display:flex;align-items:center;gap:6px;border:0;border-radius:99px;background:var(--acc);color:#fff;font-size:15px;min-height:44px;padding:0 14px;box-shadow:0 4px 12px #0003;cursor:pointer;z-index:2}
 .hud.hide{opacity:0;transform:translateY(-20px);pointer-events:none}
 .top{display:flex;align-items:center;gap:6px}
 .name{font-size:23px;line-height:1.1;background:none;border:0;color:var(--ink);padding:4px 2px;cursor:pointer;min-height:40px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:8em}
@@ -132,6 +135,7 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
         <span class="chip" id="stageChip">아기</span>
         <span class="sp"></span>
         <button class="coin" id="coinBtn" aria-label="코인, 뽑기 열기"><svg width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="12" fill="#f2b51d"/><circle cx="14" cy="14" r="8.5" fill="#ffd257" stroke="#d99700" stroke-width="1.5"/><text x="14" y="18.5" text-anchor="middle" font-size="12" fill="#a86b00" font-family="Jua,sans-serif">G</text></svg><span id="coinTxt">0</span></button>
+        <button class="icon" id="foldBtn" aria-label="상태창 접기/펴기"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button>
         <button class="icon" id="menuBtn" aria-label="메뉴"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
       </div>
       <div class="grow"><span id="growTxt">성장</span><div class="bar"><i id="growBar" style="background:#b98de0;width:0"></i></div><span id="nextTxt"></span></div>
@@ -139,8 +143,9 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
       <div class="row" id="pigRow" hidden></div>
     </div>
     <div class="bub" id="bub"></div>
-    <div class="hint" id="hint">기니를 문지르면 쓰다듬기, 꾹 누르면 들어서 옮길 수 있어요</div>
+    <div class="hint" id="hint">빈 곳을 드래그하면 시야 이동, 두 손가락으로 확대·축소</div>
     <div class="toast" id="toast"></div>
+    <button class="follow" id="followBtn" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="#fff"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>내 기니 보기</button>
     <button class="done" id="doneBtn" hidden>다 씻었어요</button>
     <svg id="comb" viewBox="0 0 74 74" hidden><rect x="6" y="8" width="58" height="20" rx="9" fill="#ff8fb3" stroke="#fff" stroke-width="3"/><g fill="#ff8fb3" stroke="#fff" stroke-width="1.5">
       <rect x="11" y="26" width="5" height="24" rx="2.5"/><rect x="19" y="26" width="5" height="26" rx="2.5"/><rect x="27" y="26" width="5" height="26" rx="2.5"/><rect x="35" y="26" width="5" height="26" rx="2.5"/><rect x="43" y="26" width="5" height="26" rx="2.5"/><rect x="51" y="26" width="5" height="24" rx="2.5"/></g><circle cx="20" cy="17" r="3" fill="#fff"/></svg>
@@ -339,6 +344,7 @@ function tex(draw,w=64,h=64){const c=document.createElement('canvas');c.width=w;
 const TX={heart:tex(x=>{x.fillStyle='#ff6f9e';x.beginPath();x.moveTo(32,54);x.bezierCurveTo(4,34,8,8,32,20);x.bezierCurveTo(56,8,60,34,32,54);x.fill()}),
   bubble:tex(x=>{const g=x.createRadialGradient(24,24,2,32,32,28);g.addColorStop(0,'#ffffffee');g.addColorStop(.7,'#d8f3ff66');g.addColorStop(1,'#a6dcff');x.fillStyle=g;x.beginPath();x.arc(32,32,28,0,7);x.fill()}),
   star:tex(x=>{x.fillStyle='#ffd34d';x.beginPath();for(let i=0;i<10;i++){const r=i%2?11:28,a=i*Math.PI/5-Math.PI/2;x.lineTo(32+Math.cos(a)*r,32+Math.sin(a)*r)}x.fill()}),
+  z:tex(x=>{x.fillStyle='#7c6cf0';x.font='bold 44px sans-serif';x.textAlign='center';x.textBaseline='middle';x.fillText('Z',32,34)}),
   drop:tex(x=>{x.fillStyle='#69c3ff';x.beginPath();x.moveTo(32,6);x.quadraticCurveTo(54,40,32,58);x.quadraticCurveTo(10,40,32,6);x.fill()}),
   fur:tex(x=>{x.strokeStyle='#ffffff';x.lineCap='round';for(let i=0;i<9;i++){x.lineWidth=2+Math.random()*2;x.beginPath();x.moveTo(14+Math.random()*10,20+Math.random()*24);x.bezierCurveTo(26,10+Math.random()*40,38,10+Math.random()*40,50-Math.random()*8,20+Math.random()*24);x.stroke()}}),
   hay:tex(x=>{x.strokeStyle='#d8c35a';x.lineWidth=3;x.lineCap='round';for(let i=0;i<4;i++){x.beginPath();x.moveTo(8+i*6,56);x.lineTo(30+i*8,8);x.stroke()}})};
@@ -452,7 +458,7 @@ function spawnPig(d,pos){const m=buildPig(d);const P={d,m,state:'idle',timer:1+M
   const a=Math.random()*6.28,r=1.5+Math.random()*(RAD-3.5);m.g.position.copy(pos||new THREE.Vector3(Math.cos(a)*r,0,Math.sin(a)*r));m.g.rotation.y=Math.random()*6;scene.add(m.g);
   P.lb=document.createElement('div');P.lb.className='lb';P.lb.textContent=d.name;lbls.appendChild(P.lb);pigs.push(P);syncParts();return P}
 function rewear(P){dress(P.m,P.d.wear);syncParts()}
-function select(P){if(!P)return;sel=P;S.sel=P.d.id;pigs.forEach(p=>p.lb.classList.toggle('on',p===P));renderRow();ui()}
+function select(P){if(!P)return;sel=P;camFree=false;S.sel=P.d.id;pigs.forEach(p=>p.lb.classList.toggle('on',p===P));renderRow();ui()}
 function renderRow(){const row=$('#pigRow');row.hidden=pigs.length<2;row.innerHTML=pigs.map((p,i)=>{const c=coatOf(p.d).c;return `<button class="pc${p===sel?' on':''}" data-i="${i}"><i style="background:${c[c.length>1?1:0]}"></i><span></span></button>`}).join('');
   row.querySelectorAll('.pc').forEach(b=>{const p=pigs[+b.dataset.i];b.querySelector('span').textContent=p.d.name;b.onclick=()=>{if(anyBusy()){toast('지금은 돌보는 중이에요');return}select(p);squeak(1,pitch(p))}})}
 const sc=P=>0.62+0.38*Math.min(1,P.d.growth/ADULT);
@@ -495,22 +501,22 @@ function makeFood(id){const g=new THREE.Group(),A=(c,s,p)=>part(M(c,{roughness:0
   else{const c=mesh(new THREE.ConeGeometry(0.15,0.3,14),M('#ef3b52',{roughness:0.5}));c.rotation.x=Math.PI;c.position.y=0.05;g.add(c);A('#5fb24a',[0.15,0.03,0.15],[0,0.2,0])}
   return g}
 function feedMenu(){if(anyBusy()||!sel)return;const d=sel.d;openSheet(d.name+'에게 줄 음식',FOODS.map(f=>({...f,sub:effTxt(f.e)+(d.favKnown&&d.fav===f.id?' ♥':''),fav:d.favKnown&&d.fav===f.id})),feed)}
-function feed(f){if(anyBusy()||!sel)return;actor=sel;foodDef=f;food=makeFood(f.id);food.position.set(BOWL.x,3.2,BOWL.z);food.userData.vy=0;scene.add(food);
+function feed(f){if(anyBusy()||!sel)return;actor=sel;camFree=false;foodDef=f;food=makeFood(f.id);food.position.set(BOWL.x,3.2,BOWL.z);food.userData.vy=0;scene.add(food);
   const dir=tmp.copy(actor.m.g.position).sub(BOWL);dir.y=0;if(dir.lengthSq()<0.01)dir.set(-1,0,0);dir.normalize();actor.target.copy(BOWL).addScaledVector(dir,0.75+1.1*sc(actor));actor.state='toBowl';say(actor,josa(f.n,'이다','다')+'!');squeak(2,pitch(actor))}
 function playMenu(){if(anyBusy()||!sel)return;openSheet(josa(sel.d.name,'이랑','랑')+' 뭐 하고 놀까요?',PLAYS.map(p=>({...p,sub:p.d})),play)}
-function play(p){if(anyBusy()||!sel)return;actor=sel;const A=actor,g=A.m.g;
+function play(p){if(anyBusy()||!sel)return;actor=sel;camFree=false;const A=actor,g=A.m.g;
   if(p.id==='ball'){ball=mesh(new THREE.SphereGeometry(0.28,24,16),M('#4c9fd6',{roughness:0.5}));ball.add(mesh(new THREE.TorusGeometry(0.285,0.04,8,30),M('#ffffff')));
     ball.position.set(clamp(g.position.x+Math.sin(g.rotation.y)*1.8,-6,6),0.28,clamp(g.position.z+Math.cos(g.rotation.y)*1.8,-6,6));ball.userData.v=new THREE.Vector3((Math.random()-.5)*4,0,(Math.random()-.5)*4);scene.add(ball);kicks=0;A.state='chase';say(A,'공이다!')}
   if(p.id==='wheel'){A.target.set(WHEEL.x,0,WHEEL.z+2.4);A.state='toWheel';say(A,'쳇바퀴다!')}
   if(p.id==='tunnel'){const ent=tmp.copy(HIDE).addScaledVector(TAX,-2.3),ext=tmp3.copy(HIDE).addScaledVector(TAX,2.3);if(g.position.distanceTo(ext)<g.position.distanceTo(ent)){A.target.copy(ext);A.exit=ent.clone()}else{A.target.copy(ent);A.exit=ext.clone()}A.state='toTunnel';say(A,'터널이다!')}
   if(p.id==='hay'){const dir=tmp.copy(g.position).sub(HAY);dir.y=0;dir.normalize();A.target.copy(HAY).addScaledVector(dir,1.2+0.6*sc(A));A.state='toHay';say(A,'건초다!')}
   squeak(1,pitch(A)+200)}
-function wash(){if(anyBusy()||!sel)return;actor=sel;tub=new THREE.Group();const w=mesh(new THREE.CylinderGeometry(1.8,1.6,0.6,40,1,true),M('#9fd3ea',{side:THREE.DoubleSide,roughness:0.3}));w.position.y=0.3;tub.add(w);
+function wash(){if(anyBusy()||!sel)return;actor=sel;camFree=false;tub=new THREE.Group();const w=mesh(new THREE.CylinderGeometry(1.8,1.6,0.6,40,1,true),M('#9fd3ea',{side:THREE.DoubleSide,roughness:0.3}));w.position.y=0.3;tub.add(w);
   const rim=mesh(new THREE.TorusGeometry(1.8,0.09,10,48),M('#ffffff',{roughness:0.3}));rim.rotation.x=Math.PI/2;rim.position.y=0.6;tub.add(rim);
   const wt=mesh(new THREE.CircleGeometry(1.72,40),M('#bfe9ff',{transparent:true,opacity:0.55,roughness:0.05}),false);wt.rotation.x=-Math.PI/2;wt.position.y=0.38;tub.add(wt);
   tub.position.copy(TUB);tub.scale.setScalar(0.01);scene.add(tub);actor.state='toBath';say(actor,'목욕…?')}
 function endBath(){if(!actor||actor.state!=='bath')return;actor.state='dry';actor.timer=1.6;$('#doneBtn').hidden=true;hint('');say(actor,actor.d.clean>=95?'뽀송뽀송!':'개운해요');squeak(2,pitch(actor));actor.d.growth+=15}
-function groom(){if(anyBusy()||!sel)return;actor=sel;actor.state='toGroom';actor.target.copy(GROOM);say(actor,'빗질…?');furN=0}
+function groom(){if(anyBusy()||!sel)return;actor=sel;camFree=false;actor.state='toGroom';actor.target.copy(GROOM);say(actor,'빗질…?');furN=0}
 function startGroom(P){P.state='groom';groomP=P;P.brush0=P.d.brush;$('#hud').classList.add('hide');$('#groomUI').hidden=false;$('#comb').removeAttribute('hidden');hint('얼굴과 머리를 문질러 빗질해 주세요');lbls.style.opacity=0}
 function endGroom(){const P=groomP;if(!P)return;groomP=null;$('#hud').classList.remove('hide');$('#groomUI').hidden=true;$('#comb').setAttribute('hidden','');lbls.style.opacity=1;hint('');P.state='idle';P.timer=2;
   if(P.d.brush-P.brush0>10){add(P.d,'love',10);add(P.d,'clean',5);P.d.growth+=15;P.hop=0.45;tmp.copy(P.m.g.position).y+=1.2*sc(P);spawn('star',tmp,10,1.6);say(P,P.d.brush>=95?'반짝반짝!':'시원해요!');squeak(3,pitch(P))}}
@@ -521,11 +527,19 @@ let down=false,lastX=0,lastY=0,rub=0,moved=0,pressT=null,held=null,pressHit=null
 function setRay(e){const r=cv.getBoundingClientRect();ndc.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);ray.setFromCamera(ndc,cam)}
 function hit(e,list=parts){setRay(e);const h=ray.intersectObjects(list,false)[0];return h&&{P:h.object.userData.P,point:h.point}}
 function comb(e){const r=cv.getBoundingClientRect();const c=$('#comb');c.style.left=(e.clientX-r.left)+'px';c.style.top=(e.clientY-r.top)+'px'}
-cv.addEventListener('pointerdown',e=>{initAudio();down=true;lastX=e.clientX;lastY=e.clientY;moved=0;cv.setPointerCapture(e.pointerId);if(groomP){comb(e);return}
-  const h=hit(e);pressHit=h;clearTimeout(pressT);
+const ptrs=new Map();let pan=false,pinchD=0,camFree=false,zoom=1;
+function setFree(v){camFree=v;$('#followBtn').hidden=!v}
+cv.addEventListener('pointerdown',e=>{initAudio();ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});cv.setPointerCapture(e.pointerId);
+  if(ptrs.size>=2){clearTimeout(pressT);pan=false;down=false;release();const [a,b]=[...ptrs.values()];pinchD=Math.hypot(a.x-b.x,a.y-b.y);return}
+  down=true;lastX=e.clientX;lastY=e.clientY;moved=0;if(groomP){comb(e);return}
+  const h=hit(e);pressHit=h;pan=!h;clearTimeout(pressT);
   if(h&&!isBusy(h.P))pressT=setTimeout(()=>{if(moved<14&&down&&!isBusy(h.P))pickUp(h.P)},450)});
+cv.addEventListener('wheel',e=>{e.preventDefault();zoom=clamp(zoom*(e.deltaY>0?1.1:0.9),0.55,1.7)},{passive:false});
 function pickUp(P){held=P;P.state='lifted';P.walking=false;if(P!==sel&&!anyBusy())select(P);holdPt.copy(P.m.g.position);dropMark.visible=true;say(P,rnd(['으앗!','내려줘요!','뀨이이!','어디 가요?']),1.6);squeak(2,pitch(P)+300);navigator.vibrate&&navigator.vibrate(20)}
-cv.addEventListener('pointermove',e=>{if(!down)return;const dd=Math.hypot(e.clientX-lastX,e.clientY-lastY);lastX=e.clientX;lastY=e.clientY;moved+=dd;
+cv.addEventListener('pointermove',e=>{const pp=ptrs.get(e.pointerId);if(pp){pp.x=e.clientX;pp.y=e.clientY}
+  if(ptrs.size>=2){const [a,b]=[...ptrs.values()];const d=Math.hypot(a.x-b.x,a.y-b.y);if(pinchD&&d>10)zoom=clamp(zoom*pinchD/d,0.55,1.7);pinchD=d;return}
+  if(!down)return;const dx=e.clientX-lastX,dy=e.clientY-lastY,dd=Math.hypot(dx,dy);lastX=e.clientX;lastY=e.clientY;moved+=dd;
+  if(pan){if(moved>6){if(!camFree)setFree(true);clearTimeout(pressT);const wpp=2*camB.z*zoom*1.25*Math.tan(cam.fov*Math.PI/360)/(cv.clientHeight||1);focus.x-=dx*wpp;focus.z-=dy*wpp*1.4;const r=Math.hypot(focus.x,focus.z);if(r>7){focus.x*=7/r;focus.z*=7/r}}return}
   if(held){setRay(e);if(ray.ray.intersectPlane(plane,tmp)){const r=Math.hypot(tmp.x,tmp.z),mx=RAD-0.9;if(r>mx)tmp.multiplyScalar(mx/r);holdPt.set(tmp.x,0,tmp.z)}return}
   if(groomP){comb(e);$('#comb').classList.add('on');const h=hit(e,groomP.m.parts);if(!h)return;rub+=dd;if(rub<22)return;rub=0;const d=groomP.d;
     add(d,'brush',2.6);furN+=2;groomP.happy=1;const c=coatOf(d).c;spawn('fur',h.point,1+(Math.random()<0.5?1:0),0.7,rnd(c));if(Math.random()<0.1){squeak(1,pitch(groomP)-150);say(groomP,rnd(['기분 좋아요~','뀨우~','거기 거기!']))}
@@ -536,11 +550,14 @@ cv.addEventListener('pointermove',e=>{if(!down)return;const dd=Math.hypot(e.clie
   if(P!==sel&&!anyBusy())select(P);
   add(d,'love',1.6);P.happy=1.2;spawn('heart',h.point,1);d.growth+=0.6;if(Math.random()<0.12){squeak(1,pitch(P)-200);say(P,rnd(['뀨~','쀼잇','좋아요','더 해주세요']))}if(P.state==='walk'){P.state='idle';P.timer=3}});
 function release(){clearTimeout(pressT);$('#comb').classList.remove('on');if(held){const P=held;held=null;P.state='fall';P.vy=0;dropMark.visible=false;squeak(1,pitch(P));return true}return false}
-cv.addEventListener('pointerup',e=>{const was=release();if(!was&&down&&moved<8&&!groomP){const h=hit(e);if(h&&!isBusy(h.P)){const P=h.P;if(P!==sel&&!anyBusy())select(P);P.hop=0.45;add(P.d,'love',1);squeak(1,pitch(P));say(P,'뀨잇!',1.2);spawn('star',h.point,3)}}down=false});
-cv.addEventListener('pointercancel',()=>{release();down=false});
+cv.addEventListener('pointerup',e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinchD=0;const was=release();const wasPan=pan;pan=false;if(!was&&!wasPan&&down&&moved<8&&!groomP){const h=hit(e);if(h&&!isBusy(h.P)){const P=h.P;if(P!==sel&&!anyBusy())select(P);else if(P===sel)setFree(false);P.hop=0.45;add(P.d,'love',1);squeak(1,pitch(P));say(P,'뀨잇!',1.2);spawn('star',h.point,3)}}down=false});
+cv.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);if(ptrs.size<2)pinchD=0;release();down=false;pan=false});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 
 /* ---------- 버튼 · 메뉴 ---------- */
+$('#followBtn').onclick=()=>setFree(false);
+try{if(localStorage.getItem(KEY+'-mini')==='1')$('#hud').classList.add('mini')}catch(e){}
+$('#foldBtn').onclick=()=>{const m=$('#hud').classList.toggle('mini');try{localStorage.setItem(KEY+'-mini',m?'1':'0')}catch(e){}};
 $('#feedBtn').onclick=feedMenu;$('#playBtn').onclick=playMenu;$('#washBtn').onclick=wash;$('#doneBtn').onclick=endBath;$('#brushBtn').onclick=groom;$('#groomDone').onclick=endGroom;
 const menu=$('#menu');
 const sndUI=()=>{$('#sndBtn').textContent=soundOn?'소리 켜짐':'소리 꺼짐'};sndUI();
@@ -642,7 +659,20 @@ function updatePig(P,dt,t){const d=P.d,m=P.m,g=m.g,s=sc(P),k=Math.min(1,d.growth
         else{say(P,f.e.fun?'달콤해요!':'냠냠, 맛있어요!');squeak(2,pitch(P))}}break}
     case 'chase':if(ball){const bp=ball.position;moveTo(P,bp.x,bp.z,dt,spd*1.6);if(g.position.distanceTo(tmp.set(bp.x,0,bp.z))<0.55+1.1*s){const h=g.rotation.y;ball.userData.v.set(Math.sin(h)*4+(Math.random()-.5)*2.5,0,Math.cos(h)*4+(Math.random()-.5)*2.5);kicks++;add(d,'fun',9);add(d,'hunger',-1.5);squeak(1,pitch(P)+300);
       if(kicks>=4)finishPlay(P,'신나요!',8)}}break;
-    case 'popcorn':P.timer-=dt;if(P.timer<=0){P.state='idle';P.timer=2;if(ball){scene.remove(ball);ball=null}}break;
+    case 'popcorn':P.timer-=dt;if(P.timer<=0){P.state='idle';P.timer=2;if(ball&&P===actor){scene.remove(ball);ball=null}}break;
+    case 'sGo':{const o=P.soc,Q=o&&o.partner;o&&(o.timer-=dt);const ar=moveTo(P,P.target.x,P.target.z,dt,spd);P.ready=ar;if(ar)turnTo(P,o.face,dt);
+      if(!o||o.timer<0||!Q||!Q.soc||Q.soc.partner!==P||!SOC.includes(Q.state)){P.state='idle';P.soc=null;P.timer=1;break}
+      if(P.ready&&Q.ready&&Q.state==='sGo'){const st=o.kind==='boop'?'sBoop':'sNap';for(const X of [P,Q]){X.state=st;X.soc.timer=st==='sBoop'?2:9;X.soc.fx=0;X.ready=false}
+        if(st==='sBoop'){say(P,rnd(['킁킁, 안녕!','뀨?','너 누구야?','친구다!']),1.6);squeak(2,pitch(P))}else say(P,rnd(['졸려…','같이 자자','쿨…']),1.8)}break}
+    case 'sBoop':{const o=P.soc;turnTo(P,o.face,dt);o.timer-=dt;if(o.timer<1.2&&!o.fx){o.fx=1;if(o.lead){m.head.getWorldPosition(tmp);tmp.lerp(o.partner.m.head.getWorldPosition(tmp3),0.5);tmp.y+=0.3;spawn('heart',tmp,3,0.8);squeak(1,pitch(P)+200)}}
+      if(o.timer<=0){P.state='idle';P.timer=1.5;P.hop=0.4;add(d,'love',2);add(d,'fun',3);P.soc=null}break}
+    case 'sNap':{const o=P.soc;turnTo(P,o.face,dt);o.timer-=dt;o.fx-=dt;if(o.fx<=0){o.fx=1.4;m.head.getWorldPosition(tmp);tmp.y+=0.4*s;spawn('z',tmp,1,0.25)}
+      if(o.timer<=0){P.state='idle';P.timer=1.5;P.hop=0.4;add(d,'fun',4);add(d,'love',2);P.soc=null;if(o.lead)say(P,'잘 잤다!',1.4)}break}
+    case 'sChase':{const o=P.soc,Q=o.partner;o.timer-=dt;if(!Q||Q.state!=='sFlee'){P.state='idle';P.soc=null;P.timer=1;break}
+      const qp=Q.m.g.position;moveTo(P,qp.x,qp.z,dt,spd*1.45);run=18;
+      if(g.position.distanceTo(qp)<(s+sc(Q))*1.25||o.timer<=0){const caught=o.timer>0;for(const X of [P,Q]){X.state='popcorn';X.timer=1.4;add(X.d,'fun',6);X.soc=null}say(P,caught?'잡았다!':'헥헥…',1.4);squeak(3,pitch(P)+350)}break}
+    case 'sFlee':{const o=P.soc,Q=o&&o.partner;if(!o||!Q||Q.state!=='sChase'){P.state='idle';P.soc=null;P.timer=1;break}o.timer-=dt;run=18;
+      if(moveTo(P,P.target.x,P.target.z,dt,spd*1.3)||o.timer<0){o.timer=1.2;const away=tmp.copy(g.position).sub(Q.m.g.position);away.y=0;away.normalize().multiplyScalar(3).add(g.position);away.x+=(Math.random()-.5)*3;away.z+=(Math.random()-.5)*3;const r=Math.hypot(away.x,away.z);if(r>6){away.x*=6/r;away.z*=6/r}P.target.copy(away)}break}
     case 'toWheel':if(moveTo(P,P.target.x,P.target.z,dt,spd*1.3)){P.state='wheelIn';P.timer=0.5;P.hop=0.45;P.from=g.position.clone()}break;
     case 'wheelIn':P.timer-=dt;g.position.lerpVectors(P.from,tmp.set(WHEEL.x,0,WHEEL.z),1-Math.max(0,P.timer)/0.5);turnTo(P,Math.PI/2,dt*3);if(P.timer<=0){P.state='wheel';P.timer=5}break;
     case 'wheel':P.timer-=dt;g.position.set(WHEEL.x,0,WHEEL.z);g.rotation.y=Math.PI/2;spinG.rotation.z-=dt*(3+s*2);P.walking=true;run=26;lift=0.16;add(d,'fun',5*dt);add(d,'hunger',-0.6*dt);
@@ -665,7 +695,7 @@ function updatePig(P,dt,t){const d=P.d,m=P.m,g=m.g,s=sc(P),k=Math.min(1,d.growth
   let y=P.walking&&P.state!=='lifted'?Math.abs(Math.sin(t*run+d.id))*0.07*s:0;
   if(P.state==='popcorn'){y=Math.abs(Math.sin(t*9))*0.9*s;m.rig.rotation.y=Math.sin(t*18)*0.4}else m.rig.rotation.y*=0.9;
   if(P.hop>0){P.hop-=dt;y+=Math.sin((0.45-P.hop)/0.45*Math.PI)*0.35*s}
-  m.rig.position.y=y+P.lift-(P.state==='bath'?0.12:0);
+  m.rig.position.y=y+P.lift-(P.state==='bath'?0.12:P.state==='sNap'?0.07*s:0);
   m.rig.rotation.x=P.state==='lifted'?Math.sin(t*9)*0.12-0.15:m.rig.rotation.x*0.85;
   if(P.state==='lifted')m.rig.rotation.z=Math.sin(t*13)*0.18;else if(P.state!=='dry')m.rig.rotation.z*=0.85;
   m.body.scale.y=(d.breed==='teddy'?0.78:0.72)+Math.sin(t*(sad?3:4.5)+d.id)*0.012;
@@ -674,15 +704,28 @@ function updatePig(P,dt,t){const d=P.d,m=P.m,g=m.g,s=sc(P),k=Math.min(1,d.growth
   m.feet.forEach((f,i)=>{f.position.y=0.06+(P.walking?Math.max(0,Math.sin(t*run+i*1.6))*(P.state==='lifted'?0.12:0.05):0);f.rotation.x=P.state==='lifted'?Math.sin(t*run+i)*0.5:0});
   m.ears.forEach((e,i)=>{e.rotation.z=(i?1:-1)*((sad?1.05:0.7)+(P.state==='lifted'?Math.sin(t*14+i)*0.25:Math.sin(t*2+i)*0.04))});
   if(P.happy>0)P.happy-=dt;
-  P.blink-=dt;const closed=P.happy>0||(P.state==='eat'&&Math.sin(t*3)>0.6);const eyeY=closed?0.18:P.state==='lifted'?1.25:P.blink<0.12?0.15:1;if(P.blink<0)P.blink=2.5+Math.random()*3;
+  P.blink-=dt;const closed=P.happy>0||P.state==='sNap'||(P.state==='eat'&&Math.sin(t*3)>0.6);const eyeY=closed?0.18:P.state==='lifted'?1.25:P.blink<0.12?0.15:1;if(P.blink<0)P.blink=2.5+Math.random()*3;
   m.eyes.forEach(e=>{e.scale.y+=(eyeY-e.scale.y)*Math.min(1,dt*20)});
   const dn=d.clean<60?Math.round((1-d.clean/60)*m.dirt.length):0;m.dirt.forEach((x,i)=>x.visible=i<dn);
   const tn=d.brush<70?Math.ceil((1-d.brush/70)*m.tufts.length):0;m.tufts.forEach((x,i)=>x.visible=i<tn);
   P.moan-=dt;if(P.moan<=0){P.moan=14+Math.random()*8;if(sad&&!isBusy(P)){say(P,d.hunger<25?'배고파요…':d.clean<25?'씻고 싶어요…':d.fun<25?'심심해요…':'쓰다듬어 주세요…',2.5);squeak(1,pitch(P)-300)}}}
+const SOC=['sGo','sBoop','sNap','sChase','sFlee'];let socT=6;
+function social(dt){socT-=dt;if(socT>0)return;socT=7+Math.random()*7;
+  const free=pigs.filter(p=>(p.state==='idle'||p.state==='walk')&&p.lift<0.05&&p.happy<=0);if(free.length<2)return;
+  const a=rnd(free),b=free.filter(p=>p!==a).sort((x,y)=>x.m.g.position.distanceTo(a.m.g.position)-y.m.g.position.distanceTo(a.m.g.position))[0];
+  const kind=rnd(['boop','boop','nap','chase']),pa=a.m.g.position,pb=b.m.g.position;
+  const mid=new THREE.Vector3().addVectors(pa,pb).multiplyScalar(0.5);const mr=Math.hypot(mid.x,mid.z);if(mr>5){mid.x*=5/mr;mid.z*=5/mr}
+  const dir=new THREE.Vector3().subVectors(pb,pa);dir.y=0;if(dir.lengthSq()<0.01)dir.set(1,0,0);dir.normalize();const ang=Math.atan2(dir.x,dir.z);
+  if(kind==='chase'){a.state='sChase';b.state='sFlee';a.soc={kind,partner:b,timer:5};b.soc={kind,partner:a,timer:0};b.target.copy(pb);say(a,rnd(['잡아라!','거기 서!','놀자!']),1.4);squeak(1,pitch(a)+300);return}
+  const sa=sc(a),sb=sc(b);
+  if(kind==='boop'){const gap=1.55*(sa+sb);a.target.copy(mid).addScaledVector(dir,-gap/2);b.target.copy(mid).addScaledVector(dir,gap/2);a.soc={kind,partner:b,face:ang,timer:8,lead:1};b.soc={kind,partner:a,face:ang+Math.PI,timer:8}}
+  else{const gap=0.98*(sa+sb),perp=new THREE.Vector3(-dir.z,0,dir.x);a.target.copy(mid).addScaledVector(perp,-gap/2);b.target.copy(mid).addScaledVector(perp,gap/2);a.soc={kind,partner:b,face:ang,timer:8,lead:1};b.soc={kind,partner:a,face:ang,timer:8}}
+  a.state=b.state='sGo';a.ready=b.ready=false}
 let t=0,prev=performance.now(),uiT=0,saveT=0;const wantPos=new THREE.Vector3(),wantLook=new THREE.Vector3();
 function loop(now){requestAnimationFrame(loop);const dt=Math.min(0.1,(now-prev)/1000);prev=now;t+=dt;
   for(const P of pigs)updatePig(P,dt,t);
-  for(let i=0;i<pigs.length;i++)for(let j=i+1;j<pigs.length;j++){const A=pigs[i],B=pigs[j];if(A.lift>0.3||B.lift>0.3)continue;const a=A.m.g.position,b=B.m.g.position,dx=b.x-a.x,dz=b.z-a.z,dd=Math.hypot(dx,dz)||0.01,min=(sc(A)+sc(B))*1.3;
+  social(dt);
+  for(let i=0;i<pigs.length;i++)for(let j=i+1;j<pigs.length;j++){const A=pigs[i],B=pigs[j];if(A.lift>0.3||B.lift>0.3)continue;if(A.soc&&A.soc.partner===B&&SOC.includes(A.state))continue;const a=A.m.g.position,b=B.m.g.position,dx=b.x-a.x,dz=b.z-a.z,dd=Math.hypot(dx,dz)||0.01,min=(sc(A)+sc(B))*1.3;
     if(dd<min){const push=(min-dd)/2/dd,ai=isBusy(A),bj=isBusy(B);if(ai&&bj)continue;if(!ai){a.x-=dx*push*(bj?2:1);a.z-=dz*push*(bj?2:1)}if(!bj){b.x+=dx*push*(ai?2:1);b.z+=dz*push*(ai?2:1)}}}
   if(ball){const v=ball.userData.v;ball.position.addScaledVector(v,dt);v.multiplyScalar(Math.pow(0.45,dt));const r=Math.hypot(ball.position.x,ball.position.z);
     if(r>RAD-0.5){const nx=ball.position.x/r,nz=ball.position.z/r,dot=v.x*nx+v.z*nz;if(dot>0){v.x-=2*dot*nx;v.z-=2*dot*nz}ball.position.x=nx*(RAD-0.5);ball.position.z=nz*(RAD-0.5)}
@@ -693,10 +736,10 @@ function loop(now){requestAnimationFrame(loop);const dt=Math.min(0.1,(now-prev)/
     if(f.s.position.y<0.05){f.s.position.y=0.05;f.v.set(0,0,0)}
     f.s.scale.setScalar(f.size*Math.min(1,(1-f.life)*6+0.1));f.s.material.opacity=Math.min(1,f.life*2);if(f.life<=0){scene.remove(f.s);f.s.material.dispose();fx.splice(i,1)}}
   if(sel&&!groomP){const sp=sel.m.g.position,s=sc(sel);ring.visible=true;ring.position.x=sp.x;ring.position.z=sp.z;ring.scale.setScalar(s*(1.35+Math.sin(t*4)*0.05));
-    focus.lerp(tmp.set(clamp(sp.x,-5,5),0,clamp(sp.z,-5,4)),Math.min(1,dt*1.6))}else ring.visible=false;
+    if(!camFree)focus.lerp(tmp.set(clamp(sp.x,-5,5),0,clamp(sp.z,-5,4)),Math.min(1,dt*1.6))}else ring.visible=false;
   if(groomP){groomP.m.head.getWorldPosition(wantLook);const s=sc(groomP);wantPos.set(wantLook.x,wantLook.y+0.3*s,wantLook.z+2.3*s+0.9);wantLook.y-=0.05}
-  else{wantPos.set(focus.x,camB.y,focus.z+camB.z);wantLook.set(focus.x,0.2,focus.z+0.4)}
-  const k=Math.min(1,dt*(groomP?3:5));camPos.lerp(wantPos,k);camLook.lerp(wantLook,k);cam.position.copy(camPos);cam.lookAt(camLook);cam.updateMatrixWorld();
+  else{wantPos.set(focus.x,camB.y*zoom,focus.z+camB.z*zoom);wantLook.set(focus.x,0.2,focus.z+0.4)}
+  const k=Math.min(1,dt*(groomP?3:camFree?14:5));camPos.lerp(wantPos,k);camLook.lerp(wantLook,k);cam.position.copy(camPos);cam.lookAt(camLook);cam.updateMatrixWorld();
   for(const P of pigs){const [x,y,z]=toScreen(P,0.95+P.lift*0.6);P.lb.style.display=z>1?'none':'';P.lb.style.left=x+'px';P.lb.style.top=y+'px'}
   if(bubT>0&&bubP){bubT-=dt;if(bubT<=0)bub.classList.remove('on');const [x,y]=toScreen(bubP,1.35+bubP.lift*0.6);bub.style.left=x+'px';bub.style.top=(groomP?Math.max(70,y):y)+'px'}
   if(hintT>0&&!(actor&&(actor.state==='bath'||actor.state==='groom'))){hintT-=dt;if(hintT<=0)hint('')}
