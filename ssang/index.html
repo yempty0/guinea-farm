@@ -279,9 +279,9 @@ function measure(){// 각 높이에서 단면적(두께×폭)을 금 위치 기�
   const tot=Ls+Rs,lp=Ls/tot*100,rp=100-lp;
   let imb=Math.abs(lp-50);if(snapJ>=0){let Lc=0,Rc=0;for(let i=0;i<Math.max(1,snapJ);i++){const y=(ys(i)+ys(i+1))/2,c=(crack[i]+crack[i+1])/2;Lc+=area(-1,-XW,c,y);Rc+=area(1,c,XW,y)}imb=Math.abs(Lc/(Lc+Rc)*100-50)}
   const progPct=snapJ>=0?snapPct:100;
-  const pBal=imb*6,pJag=Math.max(0,jag-0.0013)*2500,pAmp=Math.max(0,avgAmp-0.007)*150,pCrumb=0,pSpd=overSpd/N*3;
+  const pBal=Math.max(0,imb-0.01)*6,pJag=Math.max(0,jag-0.0013)*2500,pAmp=Math.max(0,avgAmp-0.007)*150,pCrumb=0,pSpd=overSpd/N*3;
   const quality=clamp(100-pBal-pJag-pAmp-pCrumb-pSpd,0,100);const score=progPct*quality/100;
-  return{lp,rp,imb,pBal,pJag,pAmp,pCrumb,pSpd,score:Math.floor(score*100)/100,quality,progPct,dev,snapped:snapJ>=0}}
+  return{lp,rp,imb,pBal,pJag,pAmp,pCrumb,pSpd,score:Math.round(score*100)/100,quality,progPct,dev,snapped:snapJ>=0}}
 function finish(){state='finish';down=false;finishT=0;snap();if(rumbleG)rumbleG.gain.setTargetAtTime(0,AC.currentTime,0.05);$('#bottom').hidden=true;$('#title').firstChild.textContent='뚝!'}
 function showResult(){const r=measure();state='done';const s=r.score;if(best==null||s>best){best=s;try{localStorage.setItem('ssang-best',JSON.stringify(best))}catch(e){}}showBest();
   $('#rTitle').textContent=r.snapped?`${r.progPct.toFixed(2)}% 지점에서 가로로 뚝!`:s>=99.5?'신의 손! 완벽한 반띵':s>=97?'거의 완벽한 반반':s>=90?'친구가 인정하는 반띵':s>=75?'한쪽이 살짝 커요':'누가 봐도 한쪽이 커요';
