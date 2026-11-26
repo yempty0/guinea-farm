@@ -58,12 +58,7 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 <div class="top"><div class="t" id="title">오른쪽 막대를 잡고 시작<small id="sub">초코 아이스크림 쌍둥이 바 · 반띵 정밀 판정</small></div><div class="best">최고 점수<b id="best">-</b></div></div>
 <div class="bottom" id="bottom">
   <div class="hint" id="hint">오른쪽 막대(빛나는 점)를 잡고, 아주 천천히 오른쪽으로 당기세요</div>
-  <div class="gauge">
-    <div class="row"><span>쪼개는 속도</span><b id="spd">-</b></div>
-    <div class="track"><i id="needle"></i></div>
-    <div class="row"><span>금 진행</span><b id="prg">0.00%</b></div>
-    <div class="prog"><i id="progBar"></i></div>
-  </div>
+</div>
 </div>
 <div class="toast" id="toast"></div>
 <div class="modal on" id="start"><div class="box">
@@ -72,7 +67,7 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
   <div class="rules">
     <div>1. 오른쪽 나무 막대를 손가락으로 잡으세요.</div>
     <div>2. 아주 천천히 오른쪽으로 당기면 막대 쪽부터 위로 금이 올라가요.</div>
-    <div>3. 빠르게 당기면 금이 흔들리고 부스러기가 떨어져요.</div>
+    <div>3. 빠르게 당기면 금이 흔들리고, 확 당기면 그 자리에서 가로로 뚝 부러져요.</div>
     <div>4. 당기면서 손이 위아래로 기울면 금도 한쪽으로 휘어요. 수평 유지!</div>
     <div>5. 손을 떼도 괜찮아요. 다시 잡고 이어서 당기면 돼요.</div>
     <div>6. 양쪽 부피를 재서 100점 만점, 소수점 둘째 자리까지 판정해요.</div>
@@ -204,7 +199,7 @@ let state='ready',fingerX=0,fingerY=Y0,lastT=0,lastY=Y0,vSm=0,lastCrackle=0,fini
 let best=null;try{best=JSON.parse(localStorage.getItem('ssang-best'))}catch(e){}
 const showBest=()=>{$('#best').textContent=best!=null?best.toFixed(2)+'점':'-'};showBest();
 let tT;function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(tT);tT=setTimeout(()=>e.classList.remove('on'),1300)}
-function reset(){crack.fill(0);amp.fill(0.004);lost.fill(0);{const g=noise2(8),ph=Math.random()*8,amp=0.012+Math.random()*0.012;grain=y=>(g(y*0.35+ph,ph*0.37)-0.5)*2*amp}overSpd=0;tip=0;open=0;tipY=0;state='ready';fingerX=0;fingerY=0;pull=0;pullBase=0;vSm=0;
+function reset(){for(const p of snapPieces)p.parent&&p.parent.remove(p);snapPieces=[];snapJ=-1;halves[1].grp.children.slice(0,3).forEach(m=>m.visible=true);crack.fill(0);amp.fill(0.004);lost.fill(0);{const g=noise2(8),ph=Math.random()*8,amp=0.012+Math.random()*0.012;grain=y=>(g(y*0.35+ph,ph*0.37)-0.5)*2*amp}overSpd=0;tip=0;open=0;tipY=0;state='ready';fingerX=0;fingerY=0;pull=0;pullBase=0;vSm=0;
   for(const c of crumbs)scene.remove(c.m);crumbs.length=0;for(const h of halves){h.grp.position.set(0,0,0);h.grp.rotation.set(0,0,0)}
   rebuild();startDot.visible=startRing.visible=true;$('#title').firstChild.textContent='오른쪽 막대를 잡고 시작';$('#hint').textContent='오른쪽 막대(빛나는 점)를 잡고, 아주 천천히 오른쪽으로 당기세요';
   $('#bottom').hidden=false;camW.copy(CAM_HOME());updUI()}
@@ -231,39 +226,66 @@ function advance(){const target=Math.min(N,Math.floor(pull/FULL*N));if(target<=t
     const wc=Math.min(wild,5),jitter=(0.0012+0.004*Math.pow(wc,1.3))*(Math.random()*2-1)+(Math.random()<0.004*wc*wc?(Math.random()-.5)*0.08:0);
     let x=prev+(steer-prev)*follow+(0-prev)*attract+(gr-prev)*0.03+jitter;x=clamp(x,-0.8,0.8);crack[i]=x;
     amp[i]=0.006+0.05*Math.min(1,Math.pow(wild,1.2))+Math.abs(x-prev)*0.6;
-    if(wild>0.6&&Math.random()<0.05*wild){const sz=0.012+Math.random()*0.03*wild;lost[i]=Math.min(0.06,sz*1.5);const q=bar.localToWorld(new V3(x,ys(i),T0*(Math.random()<0.5?1:-1)));spawnCrumb(q,sz)}
-    overSpd+=Math.max(0,speedN-1.3);tip=i;made++}
+    overSpd+=Math.max(0,speedN-1.3);tip=i;made++;if(speedN>2.6&&tip>4){snapAt(tip);return}}
   tipY=ys(tip);open=0.02+0.16*(tip/N);rebuild();
   const now=performance.now();if(now-lastCrackle>35){lastCrackle=now;crackle(Math.min(14,2+made*2),0.05+0.1*Math.min(2,speedN))}
   if(rumbleG){rumbleG.gain.setTargetAtTime(Math.min(0.08,0.02+0.03*speedN),AC.currentTime,0.03);rumble.frequency.setTargetAtTime(500+400*Math.min(2,speedN),AC.currentTime,0.05)}
-  if(speedN>2.2)toast('너무 빨라요!');else if(Math.abs(fingerY-grabY)>0.25)toast('수평으로 당겨요!');
+  if(speedN>1.8)toast('너무 빨라요!');else if(Math.abs(fingerY-grabY)>0.25)toast('수평으로 당겨요!');
   if(tip>=N)finish()}
+
+/* ---------- 가로로 뚝: 금이 90도로 꺾여 오른쪽 조각만 떨어짐 ---------- */
+let snapJ=-1,snapPieces=[];
+function loopPts(y,s){const out=[];let xin,xout;if(y<=Y0+1e-6){xin=cAt(y);xout=s*XW}else{const w=Math.sqrt(Math.max(0,R0*R0-(y-Y0)**2));xin=s*R0-s*w;xout=s*R0+s*w}
+  const front=[],back=[];for(let k=0;k<P;k++){const x=lerp(xin,xout,Math.sin(k/(P-1)*Math.PI/2)),T=halfT(x,y,s);front.push([x,y,T]);back.push([x,y,-T])}return front.concat(back.reverse())}
+function fracPts(i,s){const y=ys(i),c=cAt(y),a=aAt(y),T=halfT(c,y,s),o=[];for(let k=0;k<K;k++){const z=lerp(-T,T,k/(K-1)),edge=Math.sin(k/(K-1)*Math.PI);o.push([c+rough(y,z)*a*edge,y,z])}return o}
+function stripMesh(rows,mat,flip){const n=rows[0].length,pos=[],idx=[];rows.forEach(r=>r.forEach(p=>pos.push(...p)));for(let j=0;j<rows.length-1;j++)for(let k=0;k<n-1;k++){const a=j*n+k,b=a+1,c=a+n,d=c+1;flip?idx.push(a,c,b,b,c,d):idx.push(a,b,c,b,d,c)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(idx);g.computeVertexNormals();
+  if(mat===skinM){const uv=[];rows.forEach(r=>r.forEach((p,k)=>uv.push((p[0]+XW)/(2*XW)*0.5+(k>=n/2?0.5:0),p[1]/L)));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2))}
+  else{const uv=[];rows.forEach(r=>r.forEach(p=>uv.push(p[2]*1.3+p[0],p[1]*1.3)));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2))}
+  const m=new THREE.Mesh(g,mat);m.castShadow=m.receiveShadow=true;return m}
+function capMesh(ring,y,up){// 가로로 부러진 단면: 얼음 결이 살짝 울퉁불퉁
+  const pos=[],uv=[],idx=[];let cx=0,cz=0;ring.forEach(p=>{cx+=p[0];cz+=p[2]});cx/=ring.length;cz/=ring.length;
+  const R2=6;for(let r=0;r<=R2;r++){const f=r/R2;ring.forEach(p=>{const x=lerp(cx,p[0],f),z=lerp(cz,p[2],f);const bump=(1-f)*(rough(x*3+y,z*3)*0.03+0.015)*(up?1:-1);pos.push(x,y+bump,z);uv.push(x*1.3,z*1.3)})}
+  const n=ring.length;for(let r=0;r<R2;r++)for(let k=0;k<n;k++){const a=r*n+k,b=r*n+(k+1)%n,c=a+n,d=b+n;up?idx.push(a,c,b,b,c,d):idx.push(a,b,c,b,d,c)}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();const m=new THREE.Mesh(g,innerM);m.castShadow=true;return m}
+function snapAt(j){snapJ=j;const s=1,yH=ys(j);open=0;tipY=yH;rebuild();
+  const low=new THREE.Group(),upG=new THREE.Group();
+  const rowsLow=[],fracLow=[];for(let i=0;i<=j;i++){rowsLow.push(loopPts(ys(i),s));fracLow.push(fracPts(i,s))}
+  low.add(stripMesh(rowsLow,skinM,false));low.add(stripMesh(fracLow,innerM,true));
+  const ringLow=rowsLow[j].concat(fracLow[j].slice().reverse());low.add(capMesh(ringLow,yH,true));
+  const btm=rowsLow[0].concat(fracLow[0].slice().reverse());low.add(capMesh(btm,0,false));low.children[low.children.length-1].material=skinM;
+  const rowsUp=[];for(let jj=j;jj<Y_LIST.length;jj++)rowsUp.push(loopPts(Y_LIST[jj],s));
+  upG.add(stripMesh(rowsUp,skinM,false));const fracUp=[];for(let i=j;i<=N;i++)fracUp.push(fracPts(i,s));upG.add(stripMesh(fracUp,innerM,true));
+  upG.add(capMesh(rowsUp[0].concat(fracUp[0].slice().reverse()),yH,false));
+  const R1=halves[1];R1.grp.children.slice(0,3).forEach(m=>m.visible=false);R1.grp.add(low);halves[0].grp.add(upG);snapPieces=[low,upG];
+  R1.st.rotation.z=0;R1.st.position.x=R0;R1.tipC.position.x=R0;
+  toast('앗! 가로로 뚝!');finish()}
 
 /* ---------- 판정 (부피 적분) ---------- */
 function measure(){// 각 높이에서 단면적(두께×폭)을 금 위치 기준으로 좌우 적분
   let Ls=0,Rs=0;const NX=400;
   const area=(s,x0,x1,y)=>{let a=0;const dx=(x1-x0)/NX;for(let k=0;k<NX;k++){const x=x0+(k+0.5)*dx;a+=2*halfT(x,y,s)*dx}return a};
-  for(let i=0;i<N;i++){const y0=ys(i),y1=ys(i+1),y=(y0+y1)/2,h=y1-y0,c=(crack[i]+crack[i+1])/2,lossL=(lost[i]+lost[i+1])/2;
-    Ls+=area(-1,-XW,c,y)*h;Rs+=area(1,c,XW,y)*h;Ls-=lossL*0.5*h*0.3;Rs-=lossL*0.5*h*0.3}
+  for(let i=0;i<N;i++){const y0=ys(i),y1=ys(i+1),y=(y0+y1)/2,h=y1-y0,c=(crack[Math.min(i,tip)]+crack[Math.min(i+1,tip)])/2;
+    const l=area(-1,-XW,c,y)*h,r=area(1,c,XW,y)*h;if(snapJ>=0&&i>=snapJ){Ls+=l+r}else{Ls+=l;Rs+=r}}
   // 꼭대기 반원 부분 (양쪽 동일)
   const dome=(()=>{let a=0;for(let j=0;j<rowsY.length-1;j++){const y=(rowsY[j]+rowsY[j+1])/2,h=Math.abs(rowsY[j+1]-rowsY[j]),w=Math.sqrt(Math.max(0,R0*R0-(y-Y0)**2));a+=area(1,R0-w,R0+w,y)*h}return a})();
-  Ls+=dome;Rs+=dome;
-  let jag=0,dev=0;for(let i=1;i<=N;i++){jag+=Math.abs(crack[i]-crack[i-1]);dev+=Math.abs(crack[i])}jag/=N;dev/=N;
-  let avgAmp=0,crumb=0;for(let i=1;i<=N;i++){avgAmp+=amp[i];crumb+=lost[i]}avgAmp/=N;
+  Ls+=dome;if(snapJ>=0)Ls+=dome;else Rs+=dome;
+  const NN=Math.max(1,snapJ>=0?snapJ:N);let jag=0,dev=0;for(let i=1;i<=NN;i++){jag+=Math.abs(crack[i]-crack[i-1]);dev+=Math.abs(crack[i])}jag/=NN;dev/=NN;
+  let avgAmp=0;for(let i=1;i<=NN;i++){avgAmp+=amp[i]}avgAmp/=NN;
   const tot=Ls+Rs,lp=Ls/tot*100,rp=100-lp,imb=Math.abs(lp-50);
-  const pBal=imb*6,pJag=Math.max(0,jag-0.0013)*2500,pAmp=Math.max(0,avgAmp-0.007)*150,pCrumb=crumb*4,pSpd=overSpd/N*3;
+  const pBal=imb*6,pJag=Math.max(0,jag-0.0013)*2500,pAmp=Math.max(0,avgAmp-0.007)*150,pCrumb=0,pSpd=overSpd/N*3;
   const score=clamp(100-pBal-pJag-pAmp-pCrumb-pSpd,0,100);
-  return{lp,rp,imb,pBal,pJag,pAmp,pCrumb,pSpd,score:Math.floor(score*100)/100,dev,crumbN:crumbs.length}}
+  return{lp,rp,imb,pBal,pJag,pAmp,pCrumb,pSpd,score:Math.floor(score*100)/100,dev,snapped:snapJ>=0,snapPct:snapJ/N*100}}
 function finish(){state='finish';down=false;finishT=0;snap();if(rumbleG)rumbleG.gain.setTargetAtTime(0,AC.currentTime,0.05);$('#bottom').hidden=true;$('#title').firstChild.textContent='뚝!'}
 function showResult(){const r=measure();state='done';const s=r.score;if(best==null||s>best){best=s;try{localStorage.setItem('ssang-best',JSON.stringify(best))}catch(e){}}showBest();
-  $('#rTitle').textContent=s>=99.5?'신의 손! 완벽한 반띵':s>=97?'거의 완벽한 반반':s>=90?'친구가 인정하는 반띵':s>=75?'한쪽이 살짝 커요':'누가 봐도 한쪽이 커요';
+  $('#rTitle').textContent=r.snapped?`금이 ${r.snapPct.toFixed(1)}% 지점에서 가로로 뚝!`:s>=99.5?'신의 손! 완벽한 반띵':s>=97?'거의 완벽한 반반':s>=90?'친구가 인정하는 반띵':s>=75?'한쪽이 살짝 커요':'누가 봐도 한쪽이 커요';
   $('#rScore').innerHTML=s.toFixed(2)+'<small>점</small>';
   $('#rSplit').innerHTML=`<div style="width:${r.lp}%;background:#6b3f2a">왼쪽 ${r.lp.toFixed(2)}%</div><div style="width:${r.rp}%;background:#a8653f">오른쪽 ${r.rp.toFixed(2)}%</div>`;
-  $('#rRep').innerHTML=[['양쪽 부피 차이',r.imb.toFixed(2)+'%p',r.pBal],['금의 흔들림(삐뚤빼뚤)',(r.pJag>0?'':'매끈'),r.pJag],['파단면 거칠기',(r.pAmp<0.3?'고움':r.pAmp<3?'보통':'거침'),r.pAmp],['부스러기 손실',r.crumbN+'개',r.pCrumb],['과속 구간','',r.pSpd]].map(([n,v,p])=>`<div><span>${n} ${v}</span><b class="m">-${p.toFixed(2)}</b></div>`).join('')+`<div><span>기본 점수</span><b>100.00</b></div>`;
+  $('#rRep').innerHTML=[['양쪽 부피 차이',r.imb.toFixed(2)+'%p',r.pBal],['금의 흔들림(삐뚤빼뚤)',(r.pJag>0?'':'매끈'),r.pJag],['파단면 거칠기',(r.pAmp<0.3?'고움':r.pAmp<3?'보통':'거침'),r.pAmp],['과속 구간','',r.pSpd]].map(([n,v,p])=>`<div><span>${n} ${v}</span><b class="m">-${Math.min(100,p).toFixed(2)}</b></div>`).join('')+`<div><span>기본 점수</span><b>100.00</b></div>`;
   $('#rText').textContent=r.imb<0.005?'정확히 반반이에요!':r.lp>r.rp?`왼쪽이 ${(r.lp-r.rp).toFixed(2)}%p 더 커요.`:r.rp>r.lp?`오른쪽이 ${(r.rp-r.lp).toFixed(2)}%p 더 커요.`:'정확히 반반이에요!';
   $('#result').classList.add('on')}
 $('#againBtn').onclick=()=>{$('#result').classList.remove('on');reset()};
-$('#lookBtn').onclick=()=>{$('#result').classList.remove('on');$('#title').firstChild.textContent='단면 구경 중';camW.set(1.6,0.9,tall()?6.4:5.2);};
+$('#lookBtn').onclick=()=>{$('#result').classList.remove('on');$('#title').firstChild.textContent='단면 구경 중';camW.set(1.6,0.95,tall()?9.5:6.2);};
 $('#startBtn').onclick=()=>{initAudio();$('#start').classList.remove('on')};
 
 /* ---------- 시점 (두 손가락: 회전·확대) ---------- */
@@ -276,15 +298,14 @@ const ptUp=e=>{pts.delete(e.pointerId);if(pts.size<2)pinch=0};cv.addEventListene
 cv.addEventListener('wheel',e=>{e.preventDefault();camW.z=clamp(camW.z*(e.deltaY>0?1.1:0.9),2.2,11)},{passive:false});
 
 /* ---------- UI ---------- */
-function updUI(){const sn=down?vSm/IDEAL:0;$('#needle').style.left=`calc(${clamp(sn/2.6,0,1)*100}% - 3px)`;$('#spd').textContent=!down?'-':sn<0.15?'멈춤':sn<=0.9?'완벽해요':sn<=1.6?'조금 빨라요':'너무 빨라요';
-  const p=tip/N*100;$('#prg').textContent=p.toFixed(2)+'%';$('#progBar').style.width=p+'%'}
+function updUI(){}
 
 /* ---------- 루프 ---------- */
 let t=0,prev=performance.now();
 function loop(now){requestAnimationFrame(loop);const dt=Math.min(0.05,(now-prev)/1000);prev=now;t+=dt;
   if(down){vSm*=Math.pow(0.2,dt)}
   startRing.material.opacity=0.5+0.5*Math.sin(t*5);startRing.scale.setScalar(1+0.15*Math.sin(t*5));
-  if(state==='finish'){finishT+=dt;const f=sstep(0,0.9,finishT);for(const h of halves){h.grp.position.x=h.s*0.45*f;h.grp.rotation.z=-h.s*0.22*f;h.grp.position.y=0.05*Math.sin(f*Math.PI)}if(finishT>1.6)showResult()}
+  if(state==='finish'){finishT+=dt;const f=sstep(0,0.9,finishT);for(const h of halves){if(snapJ>=0&&h.s<0)continue;h.grp.position.x=h.s*0.45*f;h.grp.rotation.z=-h.s*0.22*f;h.grp.position.y=0.05*Math.sin(f*Math.PI)}if(finishT>1.6)showResult()}
   for(let i=crumbs.length-1;i>=0;i--){const c=crumbs[i];if(c.m.position.y>-1.3){c.v.y-=9*dt;c.m.position.addScaledVector(c.v,dt);c.m.rotation.x+=c.w.x*dt;c.m.rotation.y+=c.w.y*dt}else{c.m.position.y=-1.3+c.m.scale.x}}
   camS.lerp(camW,Math.min(1,dt*5));const r=camS.z,ph=camS.y,th=camS.x;cam.position.set(camT.x+r*Math.sin(ph)*Math.sin(th),camT.y+r*Math.cos(ph),camT.z+r*Math.sin(ph)*Math.cos(th));cam.lookAt(camT);
   updUI();R.render(scene,cam)}
