@@ -80,6 +80,10 @@ button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
   <div class="split" id="rSplit"></div>
   <div class="rep" id="rRep"></div>
   <p id="rText"></p>
+  <img id="card" alt="결과 카드" style="width:100%;border-radius:16px;display:block;box-shadow:0 4px 14px #0002">
+  <small style="color:var(--soft)">사진을 길게 누르면 저장할 수도 있어요</small>
+  <div style="display:flex;gap:8px"><button class="btn" id="saveBtn" style="background:#6b3f2a">이미지 저장</button><button class="btn" id="shareBtn" style="background:#d9483b">공유하기</button></div>
+  <button class="btn sub" id="copyBtn">결과 문구 복사</button>
   <button class="btn" id="againBtn">다시 하기</button>
   <button class="btn sub" id="lookBtn">단면 구경하기</button>
 </div></div>
@@ -92,7 +96,7 @@ const V3=THREE.Vector3;
 
 /* ---------- 렌더러·장면 ---------- */
 const cv=$('#cv');
-const R=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+const R=new THREE.WebGLRenderer({canvas:cv,antialias:true,preserveDrawingBuffer:true});
 R.setPixelRatio(Math.min(devicePixelRatio,2));R.toneMapping=THREE.ACESFilmicToneMapping;R.toneMappingExposure=1.1;R.outputEncoding=THREE.sRGBEncoding;
 R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;
 const scene=new THREE.Scene();scene.background=new THREE.Color('#f4e7d8');
@@ -234,7 +238,7 @@ function advance(){const target=Math.min(N,Math.floor(pull/FULL*N));if(target<=t
   if(tip>=N)finish()}
 
 /* ---------- 가로로 뚝: 금이 90도로 꺾여 오른쪽 조각만 떨어짐 ---------- */
-let snapJ=-1,snapPieces=[];
+let snapJ=-1,snapPieces=[],snapPct=0;
 function loopPts(y,s){const out=[];let xin,xout;if(y<=Y0+1e-6){xin=cAt(y);xout=s*XW}else{const w=Math.sqrt(Math.max(0,R0*R0-(y-Y0)**2));xin=s*R0-s*w;xout=s*R0+s*w}
   const front=[],back=[];for(let k=0;k<P;k++){const x=lerp(xin,xout,Math.sin(k/(P-1)*Math.PI/2)),T=halfT(x,y,s);front.push([x,y,T]);back.push([x,y,-T])}return front.concat(back.reverse())}
 function fracPts(i,s){const y=ys(i),c=cAt(y),a=aAt(y),T=halfT(c,y,s),o=[];for(let k=0;k<K;k++){const z=lerp(-T,T,k/(K-1)),edge=Math.sin(k/(K-1)*Math.PI);o.push([c+rough(y,z)*a*edge,y,z])}return o}
@@ -248,7 +252,7 @@ function capMesh(ring,y,up){// 가로로 부러진 단면: 얼음 결이 살짝 
   const R2=6;for(let r=0;r<=R2;r++){const f=r/R2;ring.forEach(p=>{const x=lerp(cx,p[0],f),z=lerp(cz,p[2],f);const bump=(1-f)*(rough(x*3+y,z*3)*0.03+0.015)*(up?1:-1);pos.push(x,y+bump,z);uv.push(x*1.3,z*1.3)})}
   const n=ring.length;for(let r=0;r<R2;r++)for(let k=0;k<n;k++){const a=r*n+k,b=r*n+(k+1)%n,c=a+n,d=b+n;up?idx.push(a,c,b,b,c,d):idx.push(a,b,c,b,d,c)}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();const m=new THREE.Mesh(g,innerM);m.castShadow=true;return m}
-function snapAt(j){snapJ=j;const s=1,yH=ys(j);open=0;tipY=yH;rebuild();
+function snapAt(j){snapJ=j;snapPct=clamp(pull/FULL*100,j/N*100,Math.min(100,(j+1)/N*100));const s=1,yH=ys(j);open=0;tipY=yH;rebuild();
   const low=new THREE.Group(),upG=new THREE.Group();
   const rowsLow=[],fracLow=[];for(let i=0;i<=j;i++){rowsLow.push(loopPts(ys(i),s));fracLow.push(fracPts(i,s))}
   low.add(stripMesh(rowsLow,skinM,false));low.add(stripMesh(fracLow,innerM,true));
@@ -272,18 +276,39 @@ function measure(){// 각 높이에서 단면적(두께×폭)을 금 위치 기�
   Ls+=dome;if(snapJ>=0)Ls+=dome;else Rs+=dome;
   const NN=Math.max(1,snapJ>=0?snapJ:N);let jag=0,dev=0;for(let i=1;i<=NN;i++){jag+=Math.abs(crack[i]-crack[i-1]);dev+=Math.abs(crack[i])}jag/=NN;dev/=NN;
   let avgAmp=0;for(let i=1;i<=NN;i++){avgAmp+=amp[i]}avgAmp/=NN;
-  const tot=Ls+Rs,lp=Ls/tot*100,rp=100-lp,imb=Math.abs(lp-50);
+  const tot=Ls+Rs,lp=Ls/tot*100,rp=100-lp;
+  let imb=Math.abs(lp-50);if(snapJ>=0){let Lc=0,Rc=0;for(let i=0;i<Math.max(1,snapJ);i++){const y=(ys(i)+ys(i+1))/2,c=(crack[i]+crack[i+1])/2;Lc+=area(-1,-XW,c,y);Rc+=area(1,c,XW,y)}imb=Math.abs(Lc/(Lc+Rc)*100-50)}
+  const progPct=snapJ>=0?snapPct:100;
   const pBal=imb*6,pJag=Math.max(0,jag-0.0013)*2500,pAmp=Math.max(0,avgAmp-0.007)*150,pCrumb=0,pSpd=overSpd/N*3;
-  const score=clamp(100-pBal-pJag-pAmp-pCrumb-pSpd,0,100);
-  return{lp,rp,imb,pBal,pJag,pAmp,pCrumb,pSpd,score:Math.floor(score*100)/100,dev,snapped:snapJ>=0,snapPct:snapJ/N*100}}
+  const quality=clamp(100-pBal-pJag-pAmp-pCrumb-pSpd,0,100);const score=progPct*quality/100;
+  return{lp,rp,imb,pBal,pJag,pAmp,pCrumb,pSpd,score:Math.floor(score*100)/100,quality,progPct,dev,snapped:snapJ>=0}}
 function finish(){state='finish';down=false;finishT=0;snap();if(rumbleG)rumbleG.gain.setTargetAtTime(0,AC.currentTime,0.05);$('#bottom').hidden=true;$('#title').firstChild.textContent='뚝!'}
 function showResult(){const r=measure();state='done';const s=r.score;if(best==null||s>best){best=s;try{localStorage.setItem('ssang-best',JSON.stringify(best))}catch(e){}}showBest();
-  $('#rTitle').textContent=r.snapped?`금이 ${r.snapPct.toFixed(1)}% 지점에서 가로로 뚝!`:s>=99.5?'신의 손! 완벽한 반띵':s>=97?'거의 완벽한 반반':s>=90?'친구가 인정하는 반띵':s>=75?'한쪽이 살짝 커요':'누가 봐도 한쪽이 커요';
+  $('#rTitle').textContent=r.snapped?`${r.progPct.toFixed(2)}% 지점에서 가로로 뚝!`:s>=99.5?'신의 손! 완벽한 반띵':s>=97?'거의 완벽한 반반':s>=90?'친구가 인정하는 반띵':s>=75?'한쪽이 살짝 커요':'누가 봐도 한쪽이 커요';
   $('#rScore').innerHTML=s.toFixed(2)+'<small>점</small>';
   $('#rSplit').innerHTML=`<div style="width:${r.lp}%;background:#6b3f2a">왼쪽 ${r.lp.toFixed(2)}%</div><div style="width:${r.rp}%;background:#a8653f">오른쪽 ${r.rp.toFixed(2)}%</div>`;
-  $('#rRep').innerHTML=[['양쪽 부피 차이',r.imb.toFixed(2)+'%p',r.pBal],['금의 흔들림(삐뚤빼뚤)',(r.pJag>0?'':'매끈'),r.pJag],['파단면 거칠기',(r.pAmp<0.3?'고움':r.pAmp<3?'보통':'거침'),r.pAmp],['과속 구간','',r.pSpd]].map(([n,v,p])=>`<div><span>${n} ${v}</span><b class="m">-${Math.min(100,p).toFixed(2)}</b></div>`).join('')+`<div><span>기본 점수</span><b>100.00</b></div>`;
+  $('#rRep').innerHTML=`<div><span>쪼갠 길이</span><b>${r.progPct.toFixed(2)}%</b></div><div><span>쪼갠 부분의 정밀도</span><b>${r.quality.toFixed(2)}점</b></div>`+[[r.snapped?'쪼갠 부분 좌우 차이':'양쪽 부피 차이',r.imb.toFixed(2)+'%p',r.pBal],['금의 흔들림(삐뚤빼뚤)',(r.pJag>0?'':'매끈'),r.pJag],['파단면 거칠기',(r.pAmp<0.3?'고움':r.pAmp<3?'보통':'거침'),r.pAmp],['과속 구간','',r.pSpd]].map(([n,v,p])=>`<div><span>${n} ${v}</span><b class="m">-${Math.min(100,p).toFixed(2)}</b></div>`).join('')+`<div><span>최종 = 쪼갠 길이 × 정밀도</span><b>${s.toFixed(2)}점</b></div>`;
   $('#rText').textContent=r.imb<0.005?'정확히 반반이에요!':r.lp>r.rp?`왼쪽이 ${(r.lp-r.rp).toFixed(2)}%p 더 커요.`:r.rp>r.lp?`오른쪽이 ${(r.rp-r.lp).toFixed(2)}%p 더 커요.`:'정확히 반반이에요!';
-  $('#result').classList.add('on')}
+  lastRes=r;$('#result').classList.add('on');makeCard()}
+let lastRes=null,cardURL='';const GAME_URL='https://yempty0.github.io/guinea-farm/ssang/';
+async function makeCard(){const r=lastRes;if(!r)return;try{await document.fonts.load('80px Jua')}catch(e){}
+  R.render(scene,cam);const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  x.fillStyle='#f4e7d8';x.fillRect(0,0,W,H);
+  const sw=cv.width,sh=cv.height,ar=(W-120)/700;let cw=sw,ch=sw/ar;if(ch>sh){ch=sh;cw=sh*ar}x.save();x.beginPath();if(x.roundRect)x.roundRect(60,220,W-120,700,40);else x.rect(60,220,W-120,700);x.clip();x.drawImage(cv,(sw-cw)/2,(sh-ch)/2,cw,ch,60,220,W-120,700);x.restore();
+  x.fillStyle='#2e1f18';x.textAlign='center';x.font='64px Jua, sans-serif';x.fillText('쌍쌍바 완벽하게 쪼개기',W/2,120);
+  x.fillStyle='#7d685c';x.font='38px Jua, sans-serif';x.fillText($('#rTitle').textContent,W/2,185);
+  x.fillStyle='#d9483b';x.font='150px Jua, sans-serif';x.fillText(r.score.toFixed(2)+'점',W/2,1080);
+  const bx=110,bw=W-220,by=1120,bh=64,lw=bw*r.lp/100;x.fillStyle='#6b3f2a';x.fillRect(bx,by,lw,bh);x.fillStyle='#a8653f';x.fillRect(bx+lw,by,bw-lw,bh);
+  x.fillStyle='#fff';x.font='32px Jua, sans-serif';x.textAlign='left';x.fillText('왼쪽 '+r.lp.toFixed(2)+'%',bx+20,by+44);x.textAlign='right';x.fillText('오른쪽 '+r.rp.toFixed(2)+'%',bx+bw-20,by+44);
+  x.textAlign='center';x.fillStyle='#7d685c';x.font='32px Jua, sans-serif';x.fillText(`쪼갠 길이 ${r.progPct.toFixed(2)}% · 정밀도 ${r.quality.toFixed(2)}점`,W/2,1240);
+  x.font='28px Jua, sans-serif';x.fillText(GAME_URL.replace('https://',''),W/2,1300);
+  cardURL=c.toDataURL('image/png');$('#card').src=cardURL;window.__cardCanvas=c}
+const shareText=()=>lastRes?`쌍쌍바 쪼개기 ${lastRes.score.toFixed(2)}점! (왼쪽 ${lastRes.lp.toFixed(2)}% · 오른쪽 ${lastRes.rp.toFixed(2)}%) 너도 도전해 봐 ${GAME_URL}`:'';
+$('#saveBtn').onclick=()=>{if(!cardURL)return;try{const a=document.createElement('a');a.href=cardURL;a.download=`ssangssang-${lastRes.score.toFixed(2)}.png`;document.body.appendChild(a);a.click();a.remove();toast('저장했어요! 안 되면 사진을 길게 눌러 주세요')}catch(e){toast('사진을 길게 눌러 저장해 주세요')}};
+$('#shareBtn').onclick=async()=>{try{const c=window.__cardCanvas;const blob=await new Promise(res=>c.toBlob(res,'image/png'));const f=new File([blob],'ssangssang.png',{type:'image/png'});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],text:shareText()});return}if(navigator.share){await navigator.share({text:shareText(),url:GAME_URL});return}throw 0}
+  catch(e){if(e&&e.name==='AbortError')return;try{await navigator.clipboard.writeText(shareText());toast('공유가 안 돼서 결과 문구를 복사했어요')}catch(e2){toast('사진을 길게 눌러 저장해서 공유해 주세요')}}};
+$('#copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(shareText());toast('결과 문구를 복사했어요')}catch(e){toast('복사가 막혀 있어요')}};
 $('#againBtn').onclick=()=>{$('#result').classList.remove('on');reset()};
 $('#lookBtn').onclick=()=>{$('#result').classList.remove('on');$('#title').firstChild.textContent='단면 구경 중';camW.set(1.6,0.95,tall()?9.5:6.2);};
 $('#startBtn').onclick=()=>{initAudio();$('#start').classList.remove('on')};
