@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>키모찌 칭찬 게시판</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Nanum+Pen+Script&display=swap" rel="stylesheet">
+<style>
+/* VOICE: 따뜻하고 장난스러운 교실 게시판
+   IDEA: 쉬는 시간 교실 칠판에 다 같이 키모찌 칭찬을 적고 자석을 붙이는 장면
+   PICTURE: 나무 틀의 초록 칠판이 화면을 채우고, 분필 받침대와 자석, 분필 글씨
+   COLOUR and TYPE: 교실 벽 크림, 칠판 짙은 초록, 분필 흰·노랑·분홍·하늘 / 분필 글씨 Nanum Pen Script, UI는 Jua
+   LAYOUT: 위 상태 알약, 가운데 3D 칠판, 아래 큰 버튼(칭찬하기·꾸미기)과 꾸미기 도구 */
+:root{--ink:#2e2a24;--soft:#7a6f63;--acc:#ff8a65;--ok:#2f9e6e;--line:#e6ddd2}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:#efe4d4;color:var(--ink);font:16px/1.45 Jua,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+button,textarea,input{font-family:inherit}
+#cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.pill{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translateX(-50%);background:#fffffff0;border-radius:99px;padding:6px 14px;font-size:14px;box-shadow:0 4px 14px #0002;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.pill i{width:9px;height:9px;border-radius:50%;background:#bbb}.pill.live i{background:#2fb57a;box-shadow:0 0 0 3px #2fb57a33}
+.bottom{position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));display:grid;gap:8px;max-width:620px;margin:0 auto}
+.row{display:flex;gap:8px}
+.btn{flex:1;border:0;border-radius:18px;min-height:54px;font-size:19px;cursor:pointer;color:#fff;background:var(--acc);box-shadow:inset 0 -4px 0 #0002,0 4px 12px #0002;padding:0 14px}
+.btn.alt{background:#3f6b4f}.btn.light{background:#fff;color:var(--ink)}
+.btn:active{transform:translateY(2px)}
+button:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.tools{background:#fffffff2;border-radius:20px;padding:10px;display:grid;gap:8px;box-shadow:0 6px 18px #0003}
+.tools .lab{font-size:13px;color:var(--soft);margin-right:2px;align-self:center;white-space:nowrap}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;align-items:center}.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;min-width:44px;height:44px;border-radius:14px;border:2px solid var(--line);background:#fff;cursor:pointer;display:grid;place-items:center;padding:0 8px;font-size:14px;color:var(--ink)}
+.chip.on{border-color:var(--acc);box-shadow:0 0 0 2px #ff8a6544}
+.dot{width:22px;height:22px;border-radius:50%;border:1px solid #0003}
+.hint{background:#2e2a24d9;color:#fff;border-radius:14px;padding:7px 12px;font-size:14px;text-align:center}
+.modal{position:fixed;inset:0;background:#0006;display:none;place-items:center;z-index:6}
+.modal.on{display:grid}
+.box{background:#fffaf3;border-radius:24px;padding:20px;width:min(380px,92%);max-height:92dvh;overflow:auto;display:grid;gap:12px}
+.box h2{margin:0;font-size:22px;font-weight:400;text-align:center}
+.box p{margin:0;color:var(--soft);font-size:14px;text-align:center}
+textarea,input{width:100%;font-size:17px;padding:12px;border-radius:14px;border:2px solid var(--line);background:#fff;color:var(--ink)}
+textarea{min-height:120px;resize:none;line-height:1.5}
+textarea:focus,input:focus{outline:none;border-color:var(--acc)}
+.cnt{font-size:13px;color:var(--soft);text-align:right;margin-top:-6px}
+.read{font-family:"Nanum Pen Script",cursive;font-size:30px;line-height:1.3;background:#2f4a3a;color:#f4f1e8;border-radius:16px;padding:18px;white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere}
+.read small{display:block;font-size:22px;opacity:.8;margin-top:8px;text-align:right}
+.toast{position:fixed;left:50%;top:22%;transform:translate(-50%,-50%) scale(.9);background:var(--ink);color:#fff;font-size:17px;padding:10px 18px;border-radius:16px;opacity:0;pointer-events:none;transition:.25s;z-index:7;white-space:nowrap}
+.toast.on{opacity:1;transform:translate(-50%,-50%) scale(1)}
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="pill" id="pill"><i></i><span id="pillTxt">칠판 준비 중…</span></div>
+<div class="bottom">
+  <div class="tools" id="tools" hidden>
+    <div class="chips" id="modeChips"></div>
+    <div class="chips" id="colorChips"></div>
+    <div class="chips" id="shapeChips"></div>
+  </div>
+  <div class="hint" id="hint">두 손가락으로 확대·이동, 칭찬 글씨를 누르면 크게 볼 수 있어요</div>
+  <div class="row" id="mainRow"><button class="btn" id="praiseBtn">칭찬하기</button><button class="btn alt" id="decoBtn">꾸미기</button></div>
+  <div class="row" id="decoRow" hidden><button class="btn light" id="undoBtn">되돌리기</button><button class="btn alt" id="doneBtn">꾸미기 끝</button></div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal" id="write"><div class="box">
+  <h2>키모찌 칭찬하기</h2>
+  <p>칠판에 분필로 적혀요. 따뜻한 말 한마디 부탁해요!</p>
+  <textarea id="txt" maxlength="80" placeholder="예) 키모찌는 웃는 모습이 진짜 귀여워!"></textarea>
+  <div class="cnt" id="cnt">0 / 80</div>
+  <input id="who" maxlength="12" placeholder="내 이름 (비우면 익명)">
+  <div class="chips" id="wColor"></div>
+  <div class="row"><button class="btn light" id="cancelW">취소</button><button class="btn" id="sendW">칠판에 적기</button></div>
+</div></div>
+<div class="modal" id="readM"><div class="box">
+  <div class="read" id="readTxt"></div>
+  <div class="row"><button class="btn light" id="delR" hidden>내 칭찬 지우기</button><button class="btn alt" id="closeR">닫기</button></div>
+</div></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+{
+/* ===== Firebase 설정: 프로젝트를 만든 뒤 여기에 넣으면 모두가 공유하는 실시간 게시판이 돼요 ===== */
+const FIREBASE_CONFIG=null;
+
+const $=s=>document.querySelector(s);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),rnd=a=>a[Math.floor(Math.random()*a.length)];
+const CHALK=[['white','흰 분필','#f4f1e8'],['yellow','노랑','#ffe58a'],['pink','분홍','#ffb3c8'],['sky','하늘','#a8dcf5']];
+const CHALK_C=Object.fromEntries(CHALK.map(c=>[c[0],c[2]]));
+const MAG_C=[['red','#e5484d'],['yellow','#f5c518'],['blue','#3b82f6'],['green','#35a46b'],['pink','#ff7eb6']];
+const SHAPES=[['circle','동그라미'],['heart','하트'],['star','별']];
+let toastT;function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('on'),1800)}
+
+/* ---------- 저장소: Firebase(실시간 공유) 또는 내 기기(설정 전) ---------- */
+let praises=[],decos=[],uid='',mode='local';
+const LKEY='kimochi-local';
+function loadLocal(){try{const d=JSON.parse(localStorage.getItem(LKEY))||{};praises=d.praises||[];decos=d.decos||[]}catch(e){}uid=uid||('me'+Math.random().toString(36).slice(2,8));try{uid=localStorage.getItem(LKEY+'-uid')||uid;localStorage.setItem(LKEY+'-uid',uid)}catch(e){}}
+function saveLocal(){try{localStorage.setItem(LKEY,JSON.stringify({praises,decos}))}catch(e){}}
+let fs=null;
+const Store={
+  async add(col,data){data.uid=uid;if(fs){data.t=firebase.firestore.FieldValue.serverTimestamp();const r=await fs.collection(col).add(data);return r.id}
+    const id='l'+Date.now().toString(36)+Math.random().toString(36).slice(2,5);data.t=Date.now();(col==='praises'?praises:decos).unshift(Object.assign({id},data));saveLocal();changed();return id},
+  async del(col,id){if(fs){await fs.collection(col).doc(id).delete();return}if(col==='praises')praises=praises.filter(p=>p.id!==id);else decos=decos.filter(p=>p.id!==id);saveLocal();changed()}};
+function setPill(){const p=$('#pill');p.classList.toggle('live',mode==='live');$('#pillTxt').textContent=(mode==='live'?'실시간 공유 중':'내 기기에만 저장 중')+` · 칭찬 ${praises.length}개`}
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+async function initStore(){
+  if(FIREBASE_CONFIG){try{const v='10.12.2';await loadScript(`https://www.gstatic.com/firebasejs/${v}/firebase-app-compat.js`);await loadScript(`https://www.gstatic.com/firebasejs/${v}/firebase-auth-compat.js`);await loadScript(`https://www.gstatic.com/firebasejs/${v}/firebase-firestore-compat.js`);
+    firebase.initializeApp(FIREBASE_CONFIG);const cred=await firebase.auth().signInAnonymously();uid=cred.user.uid;fs=firebase.firestore();mode='live';
+    const conv=d=>{const x=d.data();return Object.assign({id:d.id},x,{t:x.t&&x.t.toMillis?x.t.toMillis():Date.now()})};
+    fs.collection('praises').orderBy('t','desc').limit(40).onSnapshot(s=>{praises=s.docs.map(conv);changed()},e=>{toast('칭찬을 불러오지 못했어요');console.warn(e)});
+    fs.collection('decos').orderBy('t','desc').limit(700).onSnapshot(s=>{decos=s.docs.map(conv);changed()},e=>console.warn(e));setPill();return}catch(e){console.warn(e);fs=null;mode='local';toast('공유 저장소에 연결하지 못해 내 기기에만 저장해요')}}
+  loadLocal();changed()}
+
+/* ---------- 3D 교실 ---------- */
+const cv=$('#cv');
+const R=new THREE.WebGLRenderer({canvas:cv,antialias:true});R.setPixelRatio(Math.min(devicePixelRatio,2));R.outputEncoding=THREE.sRGBEncoding;R.shadowMap.enabled=true;R.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();scene.background=new THREE.Color('#efe4d4');
+const cam=new THREE.PerspectiveCamera(40,1,0.05,60);
+const V3=THREE.Vector3,M=(c,o={})=>new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:0.8},o));
+function ctex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new THREE.CanvasTexture(c);t.encoding=THREE.sRGBEncoding;t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=8;return t}
+scene.add(new THREE.HemisphereLight('#fffaf0','#b9a58c',0.75));
+const sun=new THREE.DirectionalLight('#fff4e2',0.75);sun.position.set(2.5,4,5);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);Object.assign(sun.shadow.camera,{left:-4,right:4,top:3,bottom:-3,near:1,far:15});scene.add(sun);
+const wallT=ctex(256,256,(x,w,h)=>{x.fillStyle='#f1e6d6';x.fillRect(0,0,w,h);for(let i=0;i<2500;i++){x.fillStyle=`rgba(${Math.random()<0.5?255:180},${Math.random()<0.5?240:160},${Math.random()<0.5?220:140},.06)`;x.fillRect(Math.random()*w,Math.random()*h,2,2)}});wallT.repeat.set(6,4);
+const wall=new THREE.Mesh(new THREE.PlaneGeometry(30,16),M('#ffffff',{map:wallT,roughness:1}));wall.position.z=-0.06;wall.receiveShadow=true;scene.add(wall);
+const BW=4.0,BH=3.0,CW=2048,CH=1536;
+const woodT=ctex(256,64,(x,w,h)=>{x.fillStyle='#b98352';x.fillRect(0,0,w,h);for(let i=0;i<40;i++){x.strokeStyle=`rgba(110,70,35,${0.08+Math.random()*0.14})`;x.lineWidth=1+Math.random()*2;x.beginPath();const y=Math.random()*h;x.moveTo(0,y);x.bezierCurveTo(w*0.3,y+Math.random()*6-3,w*0.7,y+Math.random()*6-3,w,y);x.stroke()}});
+const woodM=M('#ffffff',{map:woodT,roughness:0.6});
+const board=new THREE.Group();scene.add(board);
+const fr=0.14;for(const [w,h,x,y] of [[BW+2*fr,fr,0,BH/2+fr/2],[BW+2*fr,fr,0,-BH/2-fr/2],[fr,BH,-BW/2-fr/2,0],[fr,BH,BW/2+fr/2,0]]){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,0.09),woodM);m.position.set(x,y,0);m.castShadow=true;board.add(m)}
+const tray=new THREE.Mesh(new THREE.BoxGeometry(BW+0.1,0.06,0.22),woodM);tray.position.set(0,-BH/2-fr-0.01,0.1);tray.castShadow=true;board.add(tray);
+const lip=new THREE.Mesh(new THREE.BoxGeometry(BW+0.1,0.06,0.03),woodM);lip.position.set(0,-BH/2-fr+0.04,0.2);board.add(lip);
+// 받침대 위 분필과 지우개
+CHALK.forEach((c,i)=>{const m=new THREE.Mesh(new THREE.CylinderGeometry(0.028,0.028,0.32,12),M(c[2],{roughness:1}));m.rotation.z=Math.PI/2+0.08*(i-1.5);m.rotation.y=0.3*(i%2?1:-1);m.position.set(-1.5+i*0.38,-BH/2-fr+0.05,0.1);m.castShadow=true;board.add(m)});
+{const er=new THREE.Group();const top=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.1,0.16),woodM),felt=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.04,0.16),M('#4a4a52',{roughness:1}));felt.position.y=-0.07;er.add(top,felt);er.position.set(1.3,-BH/2-fr+0.11,0.1);er.rotation.y=0.12;er.traverse(o=>o.castShadow=true);board.add(er)}
+// 칠판 면 (캔버스 텍스처)
+const bc=document.createElement('canvas');bc.width=CW;bc.height=CH;const bx=bc.getContext('2d');
+const BOARD=new THREE.CanvasTexture(bc);BOARD.encoding=THREE.sRGBEncoding;BOARD.anisotropy=8;
+const surf=new THREE.Mesh(new THREE.PlaneGeometry(BW,BH),new THREE.MeshStandardMaterial({map:BOARD,roughness:0.92}));surf.receiveShadow=true;surf.position.z=0.001;board.add(surf);
+const magG=new THREE.Group();board.add(magG);
+
+/* ---------- 분필 질감 ---------- */
+const bg=document.createElement('canvas');bg.width=CW;bg.height=CH;{const x=bg.getContext('2d');x.fillStyle='#2f4a3a';x.fillRect(0,0,CW,CH);
+  for(let i=0;i<60;i++){const gx=Math.random()*CW,gy=Math.random()*CH,g=x.createRadialGradient(gx,gy,10,gx,gy,200+Math.random()*400);g.addColorStop(0,'rgba(220,235,220,.05)');g.addColorStop(1,'rgba(220,235,220,0)');x.fillStyle=g;x.fillRect(0,0,CW,CH)}
+  for(let i=0;i<18;i++){x.strokeStyle='rgba(230,240,230,.035)';x.lineWidth=60+Math.random()*80;x.lineCap='round';x.beginPath();const cx=Math.random()*CW,cy=Math.random()*CH;x.arc(cx,cy,100+Math.random()*200,Math.random()*6,Math.random()*6);x.stroke()}
+  const id=x.getImageData(0,0,CW,CH);for(let i=0;i<id.data.length;i+=4){const n=(Math.random()-0.5)*10;id.data[i]+=n;id.data[i+1]+=n;id.data[i+2]+=n}x.putImageData(id,0,0)}
+const grain=(()=>{const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d'),id=x.createImageData(256,256);for(let i=0;i<id.data.length;i+=4){const a=Math.random();id.data[i]=id.data[i+1]=id.data[i+2]=0;id.data[i+3]=a<0.45?Math.random()*200:0}x.putImageData(id,0,0);return c})();
+const layer=document.createElement('canvas');layer.width=CW;layer.height=CH;const lx=layer.getContext('2d');
+const FONT='"Nanum Pen Script", "Jua", cursive';
+function wrap(x,text,maxW){const out=[];for(const para of text.split('\n')){let line='';for(const ch of para){const t=line+ch;if(x.measureText(t).width>maxW&&line){out.push(line);line=ch.trim()?ch:''}else line=t}out.push(line)}return out.slice(0,6)}
+let rects=[];
+function chalkStroke(x,pts,color,w){if(pts.length<4)return;x.strokeStyle=color;x.lineCap=x.lineJoin='round';for(let pass=0;pass<2;pass++){x.globalAlpha=pass?0.45:0.9;x.lineWidth=w*(pass?1.5:1);x.beginPath();x.moveTo(pts[0]+(pass?1.5:0),pts[1]);for(let i=2;i<pts.length;i+=2)x.lineTo(pts[i]+(pass?1.5:0),pts[i+1]+(pass?-1:0));x.stroke()}x.globalAlpha=1}
+function drawBoard(){lx.clearRect(0,0,CW,CH);
+  // 제목
+  lx.save();lx.fillStyle=CHALK_C.white;lx.font=`118px ${FONT}`;lx.textAlign='center';lx.fillText('키모찌 칭찬 게시판',CW/2,150);
+  lx.strokeStyle=CHALK_C.yellow;lx.lineWidth=7;lx.beginPath();for(let i=0;i<=40;i++){const x=CW/2-430+i*21.5,y=185+Math.sin(i*0.9)*7;i?lx.lineTo(x,y):lx.moveTo(x,y)}lx.stroke();
+  heart(lx,CW/2-520,110,30,CHALK_C.pink);heart(lx,CW/2+520,110,30,CHALK_C.pink);lx.restore();
+  // 칭찬 글씨
+  rects=[];const list=praises.slice(0,40).slice().reverse();
+  if(!list.length){lx.fillStyle=CHALK_C.white;lx.globalAlpha=0.7;lx.font=`80px ${FONT}`;lx.textAlign='center';lx.fillText('첫 번째 칭찬을 적어 주세요!',CW/2,CH/2+40);lx.globalAlpha=1}
+  for(const p of list){const cx=clamp(+p.x||0.5,0.05,0.95)*CW,cy=clamp(+p.y||0.5,0.15,0.95)*CH,rot=clamp(+p.rot||0,-0.2,0.2);lx.save();lx.translate(cx,cy);lx.rotate(rot);
+    lx.font=`62px ${FONT}`;const lines=wrap(lx,String(p.text||'').slice(0,80),520);const lh=64,h=lines.length*lh+(p.name?50:0);lx.fillStyle=CHALK_C[p.color]||CHALK_C.white;lx.textAlign='center';
+    lines.forEach((l,i)=>lx.fillText(l,0,-h/2+lh*(i+0.8)));if(p.name){lx.font=`44px ${FONT}`;lx.globalAlpha=0.85;lx.fillText('- '+String(p.name).slice(0,12)+' -',0,h/2-6);lx.globalAlpha=1}
+    lx.restore();rects.push({p,cx,cy,w:560,h:h+20,rot})}
+  // 분필 낙서
+  for(const d of decos.slice().reverse())if(d.kind==='chalk'&&Array.isArray(d.pts))chalkStroke(lx,d.pts,CHALK_C[d.color]||CHALK_C.white,clamp(+d.w||8,3,24));
+  // 분필 가루 질감
+  lx.globalCompositeOperation='destination-out';lx.fillStyle=lx.createPattern(grain,'repeat');lx.fillRect(0,0,CW,CH);lx.globalCompositeOperation='source-over';
+  bx.drawImage(bg,0,0);bx.drawImage(layer,0,0);BOARD.needsUpdate=true;
+  buildMagnets();setPill()}
+function heart(x,cx,cy,s,c){x.save();x.fillStyle=c;x.translate(cx,cy);x.beginPath();x.moveTo(0,s*0.9);x.bezierCurveTo(-s*1.6,-s*0.1,-s*0.6,-s*1.2,0,-s*0.35);x.bezierCurveTo(s*0.6,-s*1.2,s*1.6,-s*0.1,0,s*0.9);x.fill();x.restore()}
+let redrawQ=false;function changed(){if(redrawQ)return;redrawQ=true;requestAnimationFrame(()=>{redrawQ=false;drawBoard()})}
+
+/* ---------- 자석 ---------- */
+const heartShape=(()=>{const s=new THREE.Shape(),k=0.08;s.moveTo(0,-k);s.bezierCurveTo(-k*1.9,k*0.2,-k*0.8,k*1.4,0,k*0.5);s.bezierCurveTo(k*0.8,k*1.4,k*1.9,k*0.2,0,-k);return s})();
+const starShape=(()=>{const s=new THREE.Shape();for(let i=0;i<10;i++){const r=i%2?0.04:0.095,a=i*Math.PI/5+Math.PI/2;i?s.lineTo(Math.cos(a)*r,Math.sin(a)*r):s.moveTo(Math.cos(a)*r,Math.sin(a)*r)}return s})();
+const GEO={circle:new THREE.CylinderGeometry(0.075,0.075,0.04,28),heart:new THREE.ExtrudeGeometry(heartShape,{depth:0.035,bevelEnabled:true,bevelSize:0.008,bevelThickness:0.008,bevelSegments:3}),star:new THREE.ExtrudeGeometry(starShape,{depth:0.035,bevelEnabled:true,bevelSize:0.008,bevelThickness:0.008,bevelSegments:3})};
+const magMats={};const magM=c=>magMats[c]||(magMats[c]=M(c,{roughness:0.35,metalness:0.05}));
+function buildMagnets(){while(magG.children.length)magG.remove(magG.children[0]);let n=0;
+  for(const d of decos){if(d.kind!=='magnet'||n++>300)continue;const shape=GEO[d.shape]?d.shape:'circle',col=(MAG_C.find(m=>m[0]===d.color)||MAG_C[0])[1];const m=new THREE.Mesh(GEO[shape],magM(col));
+    if(shape==='circle')m.rotation.x=Math.PI/2;m.rotation.z=clamp(+d.rot||0,-1,1);m.position.set((clamp(+d.x,0,1)-0.5)*BW,(0.5-clamp(+d.y,0,1))*BH,shape==='circle'?0.02:0.004);m.castShadow=true;magG.add(m)}}
+
+/* ---------- 카메라: 두 손가락 확대·이동 ---------- */
+const view={x:0,y:0,z:1,az:0.06},viewW={...view};
+function fitDist(){const vf=cam.fov*Math.PI/180,hf=2*Math.atan(Math.tan(vf/2)*cam.aspect);return Math.max((BW/2+0.35)/Math.tan(hf/2),(BH/2+0.55)/Math.tan(vf/2))}
+function resize(){R.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}addEventListener('resize',resize);resize();
+function camUpdate(dt){for(const k in view)view[k]+=(viewW[k]-view[k])*Math.min(1,dt*8);const d=fitDist()*view.z;const az=decoMode?0:view.az;
+  cam.position.set(view.x+Math.sin(az)*d,view.y-0.15+0.12*d*0.1,Math.cos(az)*d);cam.lookAt(view.x,view.y-0.15,0)}
+
+/* ---------- 입력 ---------- */
+const ray=new THREE.Raycaster(),ndc=new THREE.Vector2(),ptrs=new Map();let decoMode=false,tool='chalk',chalkCol='white',magCol='red',magShape='heart',drawing=null,pinch=null,tapStart=null;
+function boardUV(x,y){ndc.set(x/innerWidth*2-1,-y/innerHeight*2+1);ray.setFromCamera(ndc,cam);const h=ray.intersectObject(surf,false)[0];return h?h.uv:null}
+cv.addEventListener('pointerdown',e=>{ptrs.set(e.pointerId,{x:e.clientX,y:e.clientY});cv.setPointerCapture(e.pointerId);
+  if(ptrs.size===2){drawing=null;changed();const [a,b]=[...ptrs.values()];pinch={d:Math.hypot(a.x-b.x,a.y-b.y),cx:(a.x+b.x)/2,cy:(a.y+b.y)/2};return}
+  tapStart={x:e.clientX,y:e.clientY,t:performance.now()};
+  if(decoMode&&tool==='chalk'){const uv=boardUV(e.clientX,e.clientY);if(uv){drawing=[Math.round(uv.x*CW),Math.round((1-uv.y)*CH)]}}});
+cv.addEventListener('pointermove',e=>{const p=ptrs.get(e.pointerId);if(!p)return;const dx=e.clientX-p.x,dy=e.clientY-p.y;p.x=e.clientX;p.y=e.clientY;
+  if(ptrs.size>=2&&pinch){const [a,b]=[...ptrs.values()],d=Math.hypot(a.x-b.x,a.y-b.y),cx=(a.x+b.x)/2,cy=(a.y+b.y)/2;viewW.z=clamp(viewW.z*pinch.d/d,0.28,1.25);
+    const wpp=2*fitDist()*view.z*Math.tan(cam.fov*Math.PI/360)/innerHeight;viewW.x=clamp(viewW.x-(cx-pinch.cx)*wpp,-BW/2,BW/2);viewW.y=clamp(viewW.y+(cy-pinch.cy)*wpp,-BH/2,BH/2);pinch={d,cx,cy};return}
+  if(drawing){const uv=boardUV(e.clientX,e.clientY);if(!uv)return;const x=Math.round(uv.x*CW),y=Math.round((1-uv.y)*CH),n=drawing.length;if(Math.hypot(x-drawing[n-2],y-drawing[n-1])<5)return;
+    if(drawing.length<1600){drawing.push(x,y);bx.save();bx.strokeStyle=CHALK_C[chalkCol];bx.lineCap='round';bx.lineWidth=9;bx.globalAlpha=0.85;bx.beginPath();bx.moveTo(drawing[n-2],drawing[n-1]);bx.lineTo(x,y);bx.stroke();bx.restore();BOARD.needsUpdate=true}return}
+  if(!decoMode&&ptrs.size===1&&view.z<0.98){const wpp=2*fitDist()*view.z*Math.tan(cam.fov*Math.PI/360)/innerHeight;viewW.x=clamp(viewW.x-dx*wpp,-BW/2,BW/2);viewW.y=clamp(viewW.y+dy*wpp,-BH/2,BH/2)}});
+async function up(e){ptrs.delete(e.pointerId);if(ptrs.size<2)pinch=null;if(ptrs.size)return;
+  const tap=tapStart&&Math.hypot(e.clientX-tapStart.x,e.clientY-tapStart.y)<8&&performance.now()-tapStart.t<500;tapStart=null;
+  if(drawing){const pts=drawing;drawing=null;if(pts.length>=4){try{const id=await Store.add('decos',{kind:'chalk',color:chalkCol,w:9,pts});myStack.push(['decos',id])}catch(err){toast('저장하지 못했어요');changed()}}else changed();return}
+  if(!tap)return;const uv=boardUV(e.clientX,e.clientY);if(!uv)return;
+  if(decoMode&&tool==='magnet'){try{const id=await Store.add('decos',{kind:'magnet',shape:magShape,color:magCol,x:+uv.x.toFixed(4),y:+(1-uv.y).toFixed(4),rot:+((Math.random()-.5)*0.6).toFixed(2)});myStack.push(['decos',id])}catch(err){toast('저장하지 못했어요')}return}
+  if(!decoMode){const px=uv.x*CW,py=(1-uv.y)*CH;for(let i=rects.length-1;i>=0;i--){const r=rects[i];if(Math.abs(px-r.cx)<r.w/2&&Math.abs(py-r.cy)<r.h/2){openRead(r.p);return}}}}
+cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',e=>{ptrs.delete(e.pointerId);drawing=null;pinch=null;changed()});
+cv.addEventListener('wheel',e=>{e.preventDefault();viewW.z=clamp(viewW.z*(e.deltaY>0?1.1:0.9),0.28,1.25)},{passive:false});
+
+/* ---------- 칭찬 쓰기 ---------- */
+let wColor='white';
+$('#wColor').innerHTML=CHALK.map(c=>`<button class="chip${c[0]==='white'?' on':''}" data-c="${c[0]}" aria-label="${c[1]}"><span class="dot" style="background:${c[2]}"></span></button>`).join('');
+$('#wColor').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{wColor=b.dataset.c;$('#wColor').querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===b))});
+$('#praiseBtn').onclick=()=>{$('#txt').value='';$('#cnt').textContent='0 / 80';try{$('#who').value=localStorage.getItem(LKEY+'-name')||''}catch(e){}$('#write').classList.add('on');setTimeout(()=>$('#txt').focus(),50)};
+$('#txt').addEventListener('input',()=>{$('#cnt').textContent=$('#txt').value.length+' / 80'});
+$('#cancelW').onclick=()=>$('#write').classList.remove('on');
+function findSpot(){let best=null,bd=-1;for(let k=0;k<40;k++){const x=0.14+Math.random()*0.72,y=0.26+Math.random()*0.62;let md=9;for(const r of rects){const dx=(x*CW-r.cx)/560,dy=(y*CH-r.cy)/Math.max(140,r.h);md=Math.min(md,Math.hypot(dx,dy))}if(md>bd){bd=md;best=[x,y]}}return best}
+$('#sendW').onclick=async()=>{const text=$('#txt').value.trim().slice(0,80),name=$('#who').value.trim().slice(0,12);if(!text){toast('칭찬을 적어 주세요');return}try{localStorage.setItem(LKEY+'-name',name)}catch(e){}
+  const [x,y]=findSpot();$('#sendW').disabled=true;try{const id=await Store.add('praises',{text,name,color:wColor,x:+x.toFixed(4),y:+y.toFixed(4),rot:+((Math.random()-.5)*0.14).toFixed(3)});myStack.push(['praises',id]);$('#write').classList.remove('on');toast('칠판에 적었어요!');
+    viewW.x=(x-0.5)*BW;viewW.y=(0.5-y)*BH;viewW.z=0.55}catch(e){toast('저장하지 못했어요. 잠시 뒤 다시 해 주세요')}$('#sendW').disabled=false};
+let readP=null;function openRead(p){readP=p;const r=$('#readTxt');r.textContent=String(p.text||'');if(p.name){const s=document.createElement('small');s.textContent='- '+p.name+' -';r.appendChild(s)}$('#delR').hidden=p.uid!==uid;$('#readM').classList.add('on')}
+$('#closeR').onclick=()=>$('#readM').classList.remove('on');
+$('#delR').onclick=async()=>{if(!readP)return;try{await Store.del('praises',readP.id);toast('지웠어요')}catch(e){toast('지우지 못했어요')}$('#readM').classList.remove('on')};
+
+/* ---------- 꾸미기 ---------- */
+const myStack=[];
+function renderTools(){$('#modeChips').innerHTML=`<span class="lab">도구</span><button class="chip${tool==='chalk'?' on':''}" data-t="chalk">분필로 그리기</button><button class="chip${tool==='magnet'?' on':''}" data-t="magnet">자석 붙이기</button>`;
+  $('#modeChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{tool=b.dataset.t;renderTools()});
+  if(tool==='chalk'){$('#colorChips').innerHTML='<span class="lab">분필</span>'+CHALK.map(c=>`<button class="chip${c[0]===chalkCol?' on':''}" data-c="${c[0]}" aria-label="${c[1]}"><span class="dot" style="background:${c[2]}"></span></button>`).join('');$('#shapeChips').hidden=true;
+    $('#colorChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{chalkCol=b.dataset.c;renderTools()});$('#hint').textContent='칠판을 손가락으로 그려요. 두 손가락으로 확대·이동'}
+  else{$('#colorChips').innerHTML='<span class="lab">색</span>'+MAG_C.map(c=>`<button class="chip${c[0]===magCol?' on':''}" data-c="${c[0]}"><span class="dot" style="background:${c[1]}"></span></button>`).join('');$('#shapeChips').hidden=false;
+    $('#shapeChips').innerHTML='<span class="lab">모양</span>'+SHAPES.map(s=>`<button class="chip${s[0]===magShape?' on':''}" data-s="${s[0]}">${s[1]}</button>`).join('');
+    $('#colorChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{magCol=b.dataset.c;renderTools()});$('#shapeChips').querySelectorAll('.chip').forEach(b=>b.onclick=()=>{magShape=b.dataset.s;renderTools()});$('#hint').textContent='붙이고 싶은 곳을 톡 눌러 자석을 붙여요'}}
+function setDeco(on){decoMode=on;$('#tools').hidden=!on;$('#mainRow').hidden=on;$('#decoRow').hidden=!on;if(on){renderTools();viewW.az=0}else{$('#hint').textContent='두 손가락으로 확대·이동, 칭찬 글씨를 누르면 크게 볼 수 있어요';viewW.az=0.06}}
+$('#decoBtn').onclick=()=>setDeco(true);$('#doneBtn').onclick=()=>setDeco(false);
+$('#undoBtn').onclick=async()=>{const last=myStack.pop();if(!last){toast('되돌릴 게 없어요');return}try{await Store.del(last[0],last[1])}catch(e){toast('되돌리지 못했어요')}};
+
+/* ---------- 루프 ---------- */
+let prev=performance.now();
+function loop(now){requestAnimationFrame(loop);const dt=Math.min(0.05,(now-prev)/1000);prev=now;camUpdate(dt);R.render(scene,cam)}
+(document.fonts&&document.fonts.load?Promise.all([document.fonts.load(`62px "Nanum Pen Script"`),document.fonts.load('20px Jua')]).catch(()=>{}):Promise.resolve()).then(()=>{changed()});
+drawBoard();initStore();requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
